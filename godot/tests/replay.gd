@@ -2,11 +2,17 @@ extends RefCounted
 
 const SCENARIO := "res://content/zwei-etagen.json"
 const REPLAY := "res://content/erster-weg.json"
+const PLAY_DAY_SCENARIO := "res://content/erstes-haus.json"
+const PLAY_DAY_REPLAY := "res://content/spieltag.json"
 
 
 static func run(partie, args: PackedStringArray) -> int:
-	if args.size() < 2 or args[1] != "erster-weg":
-		return _fail("Unbekannter Replay-Ablauf. Erwartet wird erster-weg.")
+	if args.size() < 2 or args[1] not in ["erster-weg", "spieltag"]:
+		return _fail("Unbekannter Replay-Ablauf. Verwende erster-weg oder spieltag.")
+	var play_day := args[1] == "spieltag"
+	var scenario_path := PLAY_DAY_SCENARIO if play_day else SCENARIO
+	var replay_path := PLAY_DAY_REPLAY if play_day else REPLAY
+	var floor_count := 3 if play_day else 2
 	var output_path := ""
 	var reference_path := ""
 	var alternate_camera := false
@@ -31,11 +37,11 @@ static func run(partie, args: PackedStringArray) -> int:
 		return _fail("Ausgabedatei fehlt. Verwende --out DATEI.")
 	if not partie.has_method("start_partie"):
 		return _fail("Die Startszene besitzt keine Partienanbindung.")
-	var load_error: String = partie.start_partie(SCENARIO, REPLAY)
+	var load_error: String = partie.start_partie(scenario_path, replay_path)
 	if not load_error.is_empty():
 		return _fail(load_error)
 
-	var replay: Variant = JSON.parse_string(FileAccess.get_file_as_string(REPLAY))
+	var replay: Variant = JSON.parse_string(FileAccess.get_file_as_string(replay_path))
 	if replay is not Dictionary or replay.get("checkpoints") is not Array:
 		return _fail("Kontrollticks fehlen im Replay-Ablauf.")
 	var reference: Array = []
@@ -55,7 +61,7 @@ static func run(partie, args: PackedStringArray) -> int:
 	var tick := 0
 	for target in replay.checkpoints:
 		while tick < int(target):
-			var floor_number := (tick + int(alternate_camera)) % 2
+			var floor_number := (tick + int(alternate_camera)) % floor_count
 			var before_camera: float = partie.render_tick()
 			var frame: Dictionary = partie.look_at_floor(floor_number)
 			if frame.get("tick", -1) != tick or partie.render_tick() != before_camera:
@@ -91,12 +97,13 @@ static func run(partie, args: PackedStringArray) -> int:
 		var expected: Variant = reference[checkpoints.size()]
 		var expected_tick := int(expected.get("tick", tick)) if expected is Dictionary else tick
 		return _difference(expected_tick, expected, null)
-	var office: Dictionary = partie.look_at_floor(1)
-	var people: Array = office.get("people", [])
-	if people.size() != 1 or people[0].id != 1 or people[0].location.kind != "at":
-		return _fail("Person 1 ist bei Tick %d im Büro nicht sichtbar." % tick)
-	if people[0].location.place.kind != "office":
-		return _fail("Person 1 steht bei Tick %d nicht an der Bürotür." % tick)
+	if not play_day:
+		var office: Dictionary = partie.look_at_floor(1)
+		var people: Array = office.get("people", [])
+		if people.size() != 1 or people[0].id != 1 or people[0].location.kind != "at":
+			return _fail("Person 1 ist bei Tick %d im Büro nicht sichtbar." % tick)
+		if people[0].location.place.kind != "office":
+			return _fail("Person 1 steht bei Tick %d nicht an der Bürotür." % tick)
 	var output := FileAccess.open(output_path, FileAccess.WRITE)
 	if output == null:
 		return _fail(

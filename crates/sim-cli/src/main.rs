@@ -1,3 +1,5 @@
+mod benchmark;
+
 use sim_core::{Replay, Scenario};
 use std::{env, error::Error, ffi::OsStr, fs, path::Path, process::ExitCode};
 
@@ -13,6 +15,9 @@ fn main() -> ExitCode {
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<_> = env::args_os().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "bench") {
+        return benchmark::run(&args[1..]);
+    }
     let [mode, scenario_path, replay_path, flag, output_path] = args.as_slice() else {
         return Err("Aufruf: sim-cli replay HAUS ABLAUF --out DATEI".into());
     };

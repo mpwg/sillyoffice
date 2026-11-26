@@ -319,6 +319,7 @@ impl World {
             }
         }
         self.refresh_access_widths();
+        self.sample_wait_estimates();
         Ok(())
     }
 }

@@ -124,3 +124,41 @@ fn rejects_inconsistent_state_even_with_a_matching_checksum() {
         );
     }
 }
+
+#[test]
+fn a_saved_seed_produces_the_same_next_housing_choice() {
+    let mut raw: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../godot/content/erstes-haus.json")).unwrap();
+    raw["rules"]["day_ticks"] = serde_json::json!(1000);
+    let scenario = Scenario::from_json(&serde_json::to_vec(&raw).unwrap()).unwrap();
+    let mut world = World::new(scenario.clone(), 42).unwrap();
+    for (place, purpose) in [(6, "home"), (11, "home")] {
+        world
+            .submit_next(
+                serde_json::from_value(serde_json::json!({
+                    "kind":"designate", "place":place, "use":purpose
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    world.step();
+    world
+        .submit_next(
+            serde_json::from_value(serde_json::json!({
+                "kind":"designate", "place":7, "use":"office"
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    let before = serde_json::to_value(world.checkpoint()).unwrap();
+    let mut restored = World::restore(scenario, &world.save().unwrap()).unwrap();
+    world.step();
+    restored.step();
+    let after = serde_json::to_value(world.checkpoint()).unwrap();
+    assert_ne!(
+        before["state"]["random_state"],
+        after["state"]["random_state"]
+    );
+    assert_eq!(after, serde_json::to_value(restored.checkpoint()).unwrap());
+}

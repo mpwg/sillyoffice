@@ -2,6 +2,20 @@
 
 [ext_resource type="Script" path="res://scripts/session.gd" id="1_session"]
 [ext_resource type="Script" path="res://scripts/building_view.gd" id="2_building"]
+[ext_resource type="Script" path="res://scripts/build_menu.gd" id="3_build_menu"]
+[ext_resource type="Script" path="res://scripts/person_panel.gd" id="4_person_panel"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.157, 0.125, 0.188, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.36, 0.27, 0.37, 1)
 
 [node name="Partie" type="Control"]
 layout_mode = 3
@@ -20,55 +34,113 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.082, 0.118, 0.149, 1)
+color = Color(0.105, 0.08, 0.133, 1)
 
 [node name="Layout" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 28.0
-offset_top = 24.0
-offset_right = -28.0
-offset_bottom = -24.0
+offset_left = 20.0
+offset_top = 14.0
+offset_right = -20.0
+offset_bottom = -14.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="Layout"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.91, 0.8, 1)
-theme_override_font_sizes/font_size = 31
-text = "Silly Office"
-
-[node name="Building" type="Control" parent="Layout"]
-clip_contents = true
-layout_mode = 2
-size_flags_vertical = 3
-mouse_filter = 2
-script = ExtResource("2_building")
-
-[node name="Controls" type="HBoxContainer" parent="Layout"]
+[node name="Header" type="HBoxContainer" parent="Layout"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Overview" type="Button" parent="Layout/Controls"]
+[node name="Title" type="Label" parent="Layout/Header"]
 layout_mode = 2
-text = "Gesamtes Haus"
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.99, 0.84, 0.64, 1)
+theme_override_font_sizes/font_size = 29
+text = "Silly Office"
 
-[node name="Reception" type="Button" parent="Layout/Controls"]
+[node name="Floor" type="OptionButton" parent="Layout/Header"]
 layout_mode = 2
-text = "Rezeption"
+custom_minimum_size = Vector2(112, 0)
 
-[node name="Office" type="Button" parent="Layout/Controls"]
+[node name="Pause" type="Button" parent="Layout/Header"]
 layout_mode = 2
-text = "Büro"
-
-[node name="Pause" type="Button" parent="Layout/Controls"]
-layout_mode = 2
-size_flags_horizontal = 10
+custom_minimum_size = Vector2(86, 0)
 text = "Pause"
+
+[node name="Step" type="Button" parent="Layout/Header"]
+layout_mode = 2
+text = "Einzelschritt"
+
+[node name="Body" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Building" type="Control" parent="Layout/Body"]
+clip_contents = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 0
+script = ExtResource("2_building")
+
+[node name="Sidebar" type="ScrollContainer" parent="Layout/Body"]
+custom_minimum_size = Vector2(306, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar")
+horizontal_scroll_mode = 0
+follow_focus = true
+
+[node name="Content" type="VBoxContainer" parent="Layout/Body/Sidebar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="PersonPanel" type="VBoxContainer" parent="Layout/Body/Sidebar/Content"]
+layout_mode = 2
+theme_override_constants/separation = 4
+script = ExtResource("4_person_panel")
+
+[node name="Person" type="OptionButton" parent="Layout/Body/Sidebar/Content/PersonPanel"]
+layout_mode = 2
+fit_to_longest_item = false
+
+[node name="Details" type="Label" parent="Layout/Body/Sidebar/Content/PersonPanel"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.89, 0.80, 0.85, 1)
+
+[node name="Follow" type="CheckButton" parent="Layout/Body/Sidebar/Content/PersonPanel"]
+layout_mode = 2
+text = "Person folgen"
+
+[node name="Divider" type="HSeparator" parent="Layout/Body/Sidebar/Content"]
+layout_mode = 2
+
+[node name="BuildMenu" type="VBoxContainer" parent="Layout/Body/Sidebar/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+script = ExtResource("3_build_menu")
 
 [node name="Status" type="Label" parent="Layout"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.78, 0.82, 0.83, 1)
+theme_override_colors/font_color = Color(0.99, 0.84, 0.64, 1)
+
+[node name="Footer" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Notice" type="Label" parent="Layout/Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.89, 0.80, 0.85, 1)
+
+[node name="Save" type="Button" parent="Layout/Footer"]
+layout_mode = 2
+text = "Speichern"
+
+[node name="Load" type="Button" parent="Layout/Footer"]
+layout_mode = 2
+text = "Laden"

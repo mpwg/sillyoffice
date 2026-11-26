@@ -326,6 +326,7 @@ dependencies = [
 name = "sim-cli"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "serde_json",
  "sim-core",
  "tempfile",

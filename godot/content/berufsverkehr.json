@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "seed": 42,
+  "floors": 100,
+  "people": 5000,
+  "cross_floor_per_floor": 5,
+  "home_floor_offset": 22,
+  "wave_tick": 4600,
+  "quiet_from_tick": 7900,
+  "observed_office_floor": 0,
+  "feeders": [
+    {"first_floor": 0, "last_floor": 10, "column": 3},
+    {"first_floor": 10, "last_floor": 20, "column": 5},
+    {"first_floor": 20, "last_floor": 30, "column": 3},
+    {"first_floor": 30, "last_floor": 40, "column": 5},
+    {"first_floor": 40, "last_floor": 50, "column": 3},
+    {"first_floor": 50, "last_floor": 60, "column": 5},
+    {"first_floor": 60, "last_floor": 70, "column": 3},
+    {"first_floor": 70, "last_floor": 80, "column": 5},
+    {"first_floor": 80, "last_floor": 90, "column": 3},
+    {"first_floor": 90, "last_floor": 99, "column": 5}
+  ],
+  "express": {"first_floor": 0, "last_floor": 90, "column": 6}
+}

@@ -129,6 +129,7 @@ impl World {
             self.state.express_lifts.insert(id);
         }
         self.refresh_access_widths();
+        self.sample_wait_estimates();
         Ok(())
     }
 
@@ -158,6 +159,119 @@ impl World {
         }
     }
 
+    pub(crate) fn sample_wait_estimates(&mut self) {
+        self.state.wait_estimates = self
+            .state
+            .lifts
+            .lines()
+            .map(|(id, line)| {
+                let stops = line
+                    .stops()
+                    .iter()
+                    .map(|&stop| (stop, self.state.lifts.estimated_wait(id, stop)))
+                    .collect();
+                (id, stops)
+            })
+            .collect();
+    }
+
+    fn wait_estimate(&self, lift: LiftId, stop: LiftStopId) -> u64 {
+        self.state
+            .wait_estimates
+            .get(&lift)
+            .and_then(|stops| stops.get(&stop))
+            .copied()
+            .unwrap_or_else(|| self.state.lifts.estimated_wait(lift, stop))
+    }
+
+    pub(crate) fn update_wait_estimates(&mut self) {
+        let Some(rules) = self.scenario.rules else {
+            return;
+        };
+        let tick = self.tick();
+        if !tick.is_multiple_of(rules.wait_sample_ticks.get())
+            || self.state.lifts.lines().next().is_none()
+        {
+            return;
+        }
+        self.sample_wait_estimates();
+
+        let changes: Vec<_> = self
+            .state
+            .people
+            .iter()
+            .filter_map(|(&id, person)| {
+                let Location::WaitingLift {
+                    place,
+                    lift,
+                    from,
+                    to,
+                    arrival_tick,
+                } = person.location
+                else {
+                    return None;
+                };
+                if tick.saturating_sub(arrival_tick) < rules.wait_sample_ticks.get() {
+                    return None;
+                }
+                let current_cost = self.estimated_segment_cost(lift, from, to)?;
+                let (candidate_cost, candidate) = self
+                    .state
+                    .lifts
+                    .lines()
+                    .filter(|(id, _)| *id != lift)
+                    .filter_map(|(id, _)| {
+                        self.estimated_segment_cost(id, from, to)
+                            .map(|cost| (cost, id))
+                    })
+                    .min()?;
+                (candidate_cost < current_cost
+                    && current_cost - candidate_cost >= rules.route_switch_savings)
+                    .then_some((id, place, lift, candidate, from, to, arrival_tick))
+            })
+            .collect();
+        for (id, place, current, candidate, from, to, arrival_tick) in changes {
+            self.state.lifts.cancel(id);
+            let person = self.state.people.get_mut(&id).unwrap();
+            if self
+                .state
+                .lifts
+                .request(candidate, id, from, to, tick)
+                .is_ok()
+            {
+                let waited = tick - arrival_tick;
+                person.waited_ticks = person.waited_ticks.saturating_add(waited);
+                self.state.total_waited_ticks =
+                    self.state.total_waited_ticks.saturating_add(waited);
+                person.location = Location::WaitingLift {
+                    place,
+                    lift: candidate,
+                    from,
+                    to,
+                    arrival_tick: tick,
+                };
+            } else if self
+                .state
+                .lifts
+                .request(current, id, from, to, arrival_tick)
+                .is_err()
+            {
+                self.replan_at(id, place);
+            }
+        }
+    }
+
+    fn estimated_segment_cost(&self, id: LiftId, from: LiftStopId, to: LiftStopId) -> Option<u64> {
+        let (_, line) = self.state.lifts.lines().find(|(lift, _)| *lift == id)?;
+        let start = line.stops().iter().position(|stop| *stop == from)?;
+        let end = line.stops().iter().position(|stop| *stop == to)?;
+        Some(
+            (start.abs_diff(end) as u64)
+                .saturating_mul(line.travel_ticks())
+                .saturating_add(self.wait_estimate(id, from)),
+        )
+    }
+
     pub(crate) fn routes(&self) -> Routes {
         let mut edges = walking_edges(&self.scenario, |place| self.access(place));
         self.add_initiative_routes(&mut edges);
@@ -171,7 +285,7 @@ impl World {
                 })
                 .collect();
             for &(from_index, from, origin) in &access {
-                let wait = self.state.lifts.estimated_wait(lift, from);
+                let wait = self.wait_estimate(lift, from);
                 for &(to_index, to, destination) in &access {
                     if from == to {
                         continue;

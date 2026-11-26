@@ -70,6 +70,7 @@ pub struct CoreState {
     pub(crate) lift_unlocked: bool,
     pub(crate) lifts: LiftSystem,
     pub(crate) express_lifts: BTreeSet<LiftId>,
+    pub(crate) wait_estimates: BTreeMap<LiftId, BTreeMap<LiftStopId, u64>>,
     pub(crate) next_lift_id: u64,
     pub(crate) route_searches: u64,
     pub(crate) lift_boardings: u64,
@@ -189,6 +190,7 @@ impl World {
             lift_unlocked: false,
             lifts: LiftSystem::default(),
             express_lifts: BTreeSet::new(),
+            wait_estimates: BTreeMap::new(),
             next_lift_id: 1,
             route_searches: 0,
             lift_boardings: 0,
@@ -294,6 +296,7 @@ impl World {
             .collect();
 
         self.progress_transport();
+        self.update_wait_estimates();
         self.daily_commutes();
         self.ease_frustration();
         self.find_tenants();

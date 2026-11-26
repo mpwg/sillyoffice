@@ -172,6 +172,17 @@ pub struct OperatingRules {
     pub population_points: u32,
     pub coffee_threshold: NonZeroU32,
     pub initiative_ticks: NonZeroU64,
+    #[serde(default = "default_wait_sample")]
+    pub wait_sample_ticks: NonZeroU64,
+    #[serde(default = "default_switch_savings")]
+    pub route_switch_savings: u64,
+}
+
+const fn default_wait_sample() -> NonZeroU64 {
+    NonZeroU64::new(10).unwrap()
+}
+const fn default_switch_savings() -> u64 {
+    6
 }
 
 #[derive(Debug, Error)]

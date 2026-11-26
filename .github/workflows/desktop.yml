@@ -100,21 +100,27 @@ jobs:
           reference="$work_dir/replay-cli.json"
           cargo run --locked --release -p sim-cli -- replay \
             godot/content/zwei-etagen.json godot/content/erster-weg.json --out "$reference"
+          cargo run --locked --release -p sim-cli -- replay \
+            godot/content/erstes-haus.json godot/content/spieltag.json --out "$work_dir/spieltag-cli.json"
           cd "$work_dir/sillyoffice-export"
-          run_replay() {
+          run_game() {
             local output=$1
             shift
             # Python wartet auch unter Windows auf die eigenständige GUI-Anwendung.
             python -c 'import subprocess, sys; sys.exit(subprocess.call(sys.argv[1:]))' \
               "./$EXECUTABLE" --headless --log-file "$output.log" -- \
-              --replay erster-weg --out "$work_dir/sillyoffice-export/$output.json" \
-              --reference "$reference" "$@" || {
+              "$@" || {
                 cat "$output.log"
                 return 1
               }
           }
-          run_replay replay
-          run_replay replay-alternate --camera-alternate
+          run_game replay --replay erster-weg --out replay.json --reference "$reference"
+          run_game replay-alternate --replay erster-weg --out replay-alternate.json --reference "$reference" --camera-alternate
+          run_game spieltag --replay spieltag --out spieltag.json --reference "$work_dir/spieltag-cli.json"
+          run_game selection --test selection
+          run_game save-store --test save-store
+          run_game desktop-save --test desktop-smoke --phase save --file desktop-save.json --out desktop-before.json
+          run_game desktop-restore --test desktop-smoke --phase resume --file desktop-save.json --out desktop-after.json
           python - "$reference" replay.json replay-alternate.json <<'PY'
           import json
           from pathlib import Path
@@ -125,13 +131,19 @@ jobs:
           for report in reports:
               actual = json.loads(report.read_text(encoding="utf-8"))
               assert actual == expected, f"{report} weicht von {reference.name} ab."
+          day = json.loads(Path("../spieltag-cli.json").read_text(encoding="utf-8"))
+          assert json.loads(Path("spieltag.json").read_text(encoding="utf-8")) == day
+          expected_by_tick = {entry["tick"]: entry for entry in day["checkpoints"]}
+          for filename, tick in (("desktop-before.json", 35), ("desktop-after.json", 100)):
+              actual = json.loads(Path(filename).read_text(encoding="utf-8"))
+              assert actual == expected_by_tick[tick], f"{filename} weicht bei Tick {tick} ab."
           PY
 
       - name: Export und Replay-Berichte archivieren
         run: |
           work_dir="${RUNNER_TEMP//\\//}"
           cd "$work_dir"
-          tar -czf "SillyOffice-$EXPORT_PRESET.tar.gz" sillyoffice-export replay-cli.json
+          tar -czf "SillyOffice-$EXPORT_PRESET.tar.gz" sillyoffice-export replay-cli.json spieltag-cli.json
 
       - name: Archiv als CI-Artefakt bereitstellen
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

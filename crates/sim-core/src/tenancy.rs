@@ -1,4 +1,4 @@
-use crate::routing::{walk, walking_edges};
+use crate::routing::walk;
 use crate::{Designation, Location, Person, PersonId, PlaceId, PlaceKind, World};
 use std::collections::BTreeSet;
 
@@ -14,7 +14,7 @@ impl World {
             return;
         }
 
-        let edges = walking_edges(&self.scenario, |place| self.access(place));
+        let edges = self.routes();
         let leased_homes: BTreeSet<_> = self.state.households.values().copied().collect();
         let leased_offices: BTreeSet<_> = self
             .state
@@ -23,7 +23,7 @@ impl World {
             .filter_map(|person| person.office)
             .collect();
         let mut offices = self.available(Designation::Office, &leased_offices);
-        let homes = self.available(Designation::Home, &leased_homes);
+        let mut homes = self.available(Designation::Home, &leased_homes);
         let applicants: Vec<_> = self
             .state
             .waiting_households
@@ -35,73 +35,99 @@ impl World {
         };
         let tick = self.tick();
 
-        for person in self
+        let unemployed: Vec<_> = self
             .state
             .people
-            .values_mut()
-            .filter(|p| p.office.is_none())
-        {
-            let Location::At { place } = person.location else {
-                continue;
-            };
-            let Some((office, route)) = offices
-                .iter()
-                .find_map(|&office| walk(&edges, place, office, tick).map(|route| (office, route)))
-            else {
+            .iter()
+            .filter_map(|(&id, person)| match person.location {
+                Location::At { place } if person.office.is_none() => Some((id, place)),
+                _ => None,
+            })
+            .collect();
+        for (id, place) in unemployed {
+            let Some((office, route)) = offices.iter().find_map(|&office| {
+                self.state.route_searches = self.state.route_searches.saturating_add(1);
+                walk(&edges, place, office, tick).map(|route| (office, route))
+            }) else {
                 continue;
             };
             offices.remove(&office);
-            person.office = Some(office);
-            person.remaining_route = route;
-            person.destination = Some(office);
-            person.begin_initial_walk(place, tick);
+            self.state.people.get_mut(&id).unwrap().office = Some(office);
+            self.start_route(id, place, office, route);
         }
         for (household, size) in applicants {
             let size_usize = size as usize;
-            let Some((home, assignments)) = homes
+            if homes.is_empty() {
+                break;
+            }
+            if offices.len() < size_usize {
+                continue;
+            }
+            let mut choices: Vec<_> = homes
                 .iter()
-                .filter(|home| !self.state.households.values().any(|leased| leased == *home))
-                .find_map(|&home| {
+                .filter_map(|&home| {
+                    self.state.route_searches = self.state.route_searches.saturating_add(1);
                     walk(&edges, reception, home, tick)?;
                     let assignments: Vec<_> = offices
                         .iter()
                         .filter_map(|&office| {
+                            self.state.route_searches = self.state.route_searches.saturating_add(1);
                             walk(&edges, home, office, tick)?;
+                            self.state.route_searches = self.state.route_searches.saturating_add(1);
                             walk(&edges, reception, office, tick).map(|route| (office, route))
                         })
                         .take(size_usize)
                         .collect();
                     (assignments.len() == size_usize).then_some((home, assignments))
                 })
-            else {
+                .collect();
+            if choices.is_empty() {
                 continue;
-            };
-            if self.state.next_person_id + u64::from(size) > u64::from(u32::MAX) + 1 {
-                break;
             }
+            if self.state.next_person_id + u64::from(size) > u64::from(u32::MAX) + 1 {
+                continue;
+            }
+            let selection = if choices.len() == 1 {
+                0
+            } else {
+                (self.next_random() % choices.len() as u64) as usize
+            };
+            let (home, assignments) = choices.swap_remove(selection);
+            homes.remove(&home);
             for (office, route) in assignments {
                 let id = PersonId(self.state.next_person_id as u32);
                 self.state.next_person_id += 1;
                 offices.remove(&office);
-                let mut person = Person {
-                    home,
-                    office: Some(office),
-                    household,
-                    location: Location::At { place: reception },
-                    remaining_route: route,
-                    destination: Some(office),
-                    waited_ticks: 0,
-                    frustration: 0,
-                    dissatisfaction: 0,
-                    last_lift: None,
-                };
-                person.begin_initial_walk(reception, tick);
-                self.state.people.insert(id, person);
+                self.state.people.insert(
+                    id,
+                    Person {
+                        home,
+                        office: Some(office),
+                        household,
+                        location: Location::At { place: reception },
+                        remaining_route: Default::default(),
+                        destination: None,
+                        waited_ticks: 0,
+                        frustration: 0,
+                        dissatisfaction: 0,
+                        last_lift: None,
+                    },
+                );
+                self.start_route(id, reception, office, route);
             }
             self.state.households.insert(household, home);
             self.state.waiting_households.remove(&household);
         }
         self.award_population_points(rules.population_points);
+    }
+
+    fn next_random(&mut self) -> u64 {
+        // SplitMix64 uses a single saved word and permits an initial seed of zero.
+        self.state.random_state = self.state.random_state.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        let mut value = self.state.random_state;
+        value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        value = (value ^ (value >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        value ^ (value >> 31)
     }
 
     fn award_population_points(&mut self, points: u32) {

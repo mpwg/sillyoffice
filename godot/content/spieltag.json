@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "seed": 42,
+  "checkpoints": [1, 2, 3, 23, 24, 30, 35, 50, 54, 75, 89, 90, 100],
+  "commands": [
+    {"tick":1,"number":1,"action":{"kind":"designate","place":6,"use":"home"}},
+    {"tick":1,"number":2,"action":{"kind":"designate","place":7,"use":"office"}},
+    {"tick":1,"number":3,"action":{"kind":"designate","place":9,"use":"kiosk"}},
+    {"tick":1,"number":4,"action":{"kind":"rent_section","section":4}},
+    {"tick":1,"number":5,"action":{"kind":"designate","place":11,"use":"office"}},
+    {"tick":2,"number":6,"action":{"kind":"unlock_lift"}},
+    {"tick":3,"number":7,"action":{"kind":"build_lift","stops":[1,2,3]}},
+    {"tick":24,"number":8,"action":{"kind":"coffee_trip","person":1,"kiosk":9}},
+    {"tick":54,"number":9,"action":{"kind":"coffee_trip","person":1,"kiosk":9}},
+    {"tick":90,"number":10,"action":{"kind":"return_section","section":3,"confirmation":"ab10446363d67b6bd9ceb4aaa5996d5b0f4931ba16fb910c880a3e4d6e71c47f"}}
+  ]
+}
