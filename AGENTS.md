@@ -2,6 +2,7 @@
 
 - Verwende deutsche Umlaute in deutschsprachigen Texten.
 - Arbeite direkt auf `main`. Committe regelmäßig in zusammenhängenden, geprüften Schritten und pushe auf `origin/main`.
+- Führe Codex in jedem von Codex erstellten Commit mit dem Trailer `Co-authored-by: Codex <codex@openai.com>` als Co-Autor an.
 - Lege für größere Umsetzungsaufträge ein Goal mit prüfbarem Abschlusskriterium an.
 - Nutze bei Rust-Arbeit die einschlägigen Rust-Skills und `type-driven-design`. Führe Verhaltensänderungen mit `test-driven-development` durch und prüfe vor jedem Abschluss den betroffenen Ablauf.
 - Nutze `delegate-coding-efficiently` für abgrenzbare Programmierpakete und `delegate-work-efficiently` für eigenständige Recherche- und Dokumentationspakete.
