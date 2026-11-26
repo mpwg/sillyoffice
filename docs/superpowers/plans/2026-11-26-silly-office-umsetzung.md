@@ -25,7 +25,7 @@
 | Zwei gültig vorgeprüfte Bauaufträge konkurrieren um denselben Platz oder das letzte Geld | Der zweite erhält einen konkreten Ablehnungsgrund. Die Kasse wird nur einmal belastet. | 2, 6 |
 | Volle Kabine öffnet an einem bereits zugestellten Umstieg | Aussteigende kommen weiter, die Reihenfolge der Wartenden bleibt nachvollziehbar, endliche Nachfrage läuft aus. | 7 |
 | Laden mit offener Fahrt, gespeichertem Zukunftsbefehl oder beschädigter Datei | Fortsetzung ergibt denselben Verlauf. Ein Ladefehler lässt die aktive Partie und eine gültige Dateigeneration nutzbar. | 5, 7 |
-| Rückgabe betrifft eine belegte Kabine und zugleich den Haushalt eines Fahrgasts | Betroffene werden einmal gezählt. Jeder verbleibende Fahrgast hat genau einen gültigen Ort. | 10 |
+| Rückgabe betrifft eine belegte Kabine und zugleich den Haushalt eines Fahrgasts | Ausziehende Haushalte und Arbeitsplatzverluste werden getrennt gezählt. Jeder verbleibende Fahrgast hat genau einen gültigen Ort. | 10 |
 | Wiederverwendete Figurenansicht nach Wegschwenken oder Auszug | Auswahl und Auskunft zeigen weiterhin die ursprüngliche ID oder melden deren Auszug. | 3, 11 |
 
 ## Dateien und Schnittstellen
@@ -83,3 +83,63 @@ Die Pakete sind in Ausführungsreihenfolge angeordnet. Die in Testbeispielen ver
 - [ ] In `crates/sim-core/src/save.rs` die Schnittstellen `World::save(&self) -> Result<Vec<u8>, SaveError>` und `World::restore(scenario: Scenario, bytes: &[u8]) -> Result<World, SaveError>` implementieren. Szenario- und Regelversion prüfen. Termine, nächste IDs, Befehle, Zufallszustand und Fortschritt müssen den nächsten Tick vollständig bestimmen. Indizes neu aufbauen.
 - [ ] In `godot/scripts/save_store.gd` in eine temporäre Datei im selben Verzeichnis schreiben, die Vollständigkeit prüfen und eine gültige Vorgängergeneration behalten. Einen geladenen Kern erst nach vollständiger Prüfung einsetzen. `godot/tests/save_store.gd` unterbricht jeden Austauschschritt und versucht den Neustart. Mindestens eine gültige Generation muss lesbar bleiben. Manuelles Laden einer unbekannten Version oder einer ungültigen ID meldet den Grund und erhält die aktive Partie.
 - [ ] `cargo test -p sim-core --test save_resume` und den Exporttest `--headless -- --test save-store` auf beiden Systemen grün ausführen. Dateigenerationen und Wiederaufnahme gemeinsam committen.
+
+### 6. Den ersten Lift freischalten, bauen und benutzen
+
+- [ ] In `crates/sim-core/tests/lift.rs` zunächst mit `cargo test -p sim-core --test lift` die Fälle für 15 zulässige Halte, einen 16. Halt, eine Lücke und einen gesperrten Lift rot ausführen. Bei zwei Aufträgen für denselben Schacht muss der zweite scheitern. Belegung, Saldo und Wegenetz entsprechen anschließend genau einem Bau.
+- [ ] In `crates/sim-core/src/lift.rs` die Aktionen zum Freischalten und Bauen über den bestehenden Befehlsweg implementieren. Bauvorschau liefert reale Halte und den ersten blockierten Halt. In `build_menu.gd` die Vorschau auch vor Anmietung als Auskunft zeigen. Beim Bau müssen Freischaltung, Geld und gemietete Fläche ausreichen.
+- [ ] Fahrwünsche in Fahrtrichtung bedienen, am letzten angeforderten Halt wenden. Die Wegsuche berücksichtigt Gehzeit, Umstieg sowie geschätzte Warte- und Fahrzeit. Nach Topologieänderungen vor Betreten der nächsten Kante ihre Gültigkeit prüfen. Während einer Fahrt verbleibt die Person bis zu einem gültigen Ausstieg in der Kabine.
+- [ ] Im Liftszenario denselben Weg zweimal antreten. Vor dem Bau wird die Treppe benutzt, danach der Lift, wenn seine Gesamtkosten geringer sind. Die Freischaltung bleibt nach Absinken und erneutem Erreichen der Bevölkerungsmarke erhalten, die Marke erzeugt kein zweites Guthaben. Test grün ausführen und den bedienbaren Lift committen.
+
+### 7. Umstieg, Gedränge und Auskunft
+
+- [ ] In `crates/sim-core/tests/interchange.rs` denselben endlichen Ankunftsschub in einen schmalen und einen breiten Vorraum schicken. Bei vollem Vorraum und voller Kabine muss der erste mögliche Ausstieg vor dem nächsten Einstieg erfolgen. Bei gleicher Ankunftszeit entscheidet die Personen-ID. Im breiten Fall sinkt die mittlere Wartezeit der identischen Fahrgastgruppe. Beide Schlangen leeren sich bis zum festgelegten Szenarioende.
+- [ ] `cargo test -p sim-core --test interchange` rot ausführen. In `crates/sim-core/src/interchange.rs` gemeinsame Standplätze vor benachbarten Türen, Gangdurchsatz und eine Ausweichregel abbilden. Eine Warteschlange lässt den Ausstiegskorridor frei bzw. rückt zurück. Plätze pro Tick höchstens einmal vergeben. Eine geänderte Flächenwidmung für den Gang muss im selben Modell dessen nutzbare Breite verändern.
+- [ ] `World::explain(&self, person: PersonId) -> Option<PersonInfo>` in `crates/sim-core/src/inspect.rs` liefert Ort, Ziel, Grund, betroffene Tür und gemessene Wartezeit. Die Schätzung für neue Wege in festen Zeitfenstern erneuern. Bereits Wartende wechseln bei einem kleinen Kostenvorteil unter der konfigurierten Wechselschwelle ihre Schlange nicht.
+- [ ] Den Spielstandtest um einen Umstieg mit Wartenden und besetzter Kabine erweitern. Reihenfolge, Standplätze, Türphase, Fahrplan und nächste Entscheidung müssen nach dem Laden übereinstimmen. Beide Rust-Testziele `--test interchange --test save_resume` grün ausführen, Auskunft und Vorraum im Client anzeigen und committen.
+
+### 8. Den Berufsverkehr bei 100 Stockwerken messen
+
+- [ ] In `crates/sim-cli/tests/benchmark.rs` eine kurze deterministische Prüfung für das Lastszenario anlegen. Genau 100 Geschosse und 5.000 Personen erzeugen. Expresshalte liegen auf Etagen mit durch zehn teilbarer Nummer. Für eine festgelegte Pendlergruppe mindestens einen tatsächlichen Wechsel zwischen Zubringer und Express nachweisen. Zwei kurze Läufe haben dieselben fachlichen Zähler und Kontrollsummen.
+- [ ] `cargo test -p sim-cli --test benchmark` rot ausführen. In `crates/sim-cli/src/benchmark.rs` Szenariogenerator, Uhr für das Normaltempo und getrennte Messung der Rechenzeit ergänzen. `godot/content/berufsverkehr.json` legt Anzahl, Linien, feste Saat und eine konzentrierte Ankunftswelle fest. Der Generator schreibt auch das vollständig erzeugte Haus für den Clientvergleich.
+- [ ] Nach grünem Funktionstest auf dem protokollierten Referenzgerät `cargo run --locked --release -p sim-cli -- bench godot/content/berufsverkehr.json --seconds 900 --out build/last.json` ausführen. Mindestens 15 reale Minuten mit Anlauf, Stoßzeit und Ruhephase messen. Je Phase Anzahl berechneter Ticks, Tickzeit p95 und Maximum, Wegsuchen, längste Schlange und Spitzenspeicher ausweisen. Zeit für das Warten auf den nächsten Tick zählt nur zur Laufdauer.
+- [ ] Gerät, Auflösung, Betriebssystem, Build, Saat und Messwerte in `docs/abnahme/berufsverkehr.md` festhalten. Liegt p95 über 8 ms, den teuersten Anteil profilieren, gezielt ändern und identisch nachmessen. Bei geteilten Routenergebnissen müssen Topologieversion, zulässige Wege und Kostenzeitfenster zusammenpassen. Eine Optimierung mit abweichender Kernprüfsumme erfordert eine fachliche Erklärung. Lastszenario und ersten Befund committen.
+
+### 9. Den Kaffeegang und die Rutschstange entstehen lassen
+
+- [ ] In `crates/sim-core/tests/coffee.rs` denselben Bewohner wiederholt vom Büro zum Kiosk schicken. Vor der im Testszenario festgelegten Wiederholungszahl existiert keine Stange. Danach entsteht genau eine zulässige Abwärtsverbindung. Der nächste Hinweg ist kürzer, der Rückweg führt weiterhin über eine zulässige Aufwärtsverbindung.
+- [ ] `cargo test -p sim-core --test coffee` rot ausführen. In `crates/sim-core/src/initiative.rs` Bedarf, wiederkehrenden Umweg, zulässige Anker und Anlass speichern. Einen beobachtbaren Bauzustand mit Fertigstellungstick melden. Erst bei Fertigstellung die gerichtete Kante freigeben. Anlass und beteiligte Personen sind im Client abfragbar.
+- [ ] Kurzen Ärger abklingen lassen und wiederholte Störungen als Unzufriedenheit mit messbarem Anlass festhalten. Beobachtungen, angefangene Arbeiten und neue Kante in den Spielstand aufnehmen. Auf halbem Bauweg speichern und laden, anschließend genau eine Stange und denselben Zielweg prüfen. Tests grün ausführen und die erste Bewohnerverbindung committen.
+
+### 10. Einen bewohnten Flügel in einem Tick zurückgeben
+
+- [ ] In `crates/sim-core/tests/return_section.rs` für die folgenden Fälle Vorschau, Bestätigung und Zustand nach dem nächsten Tick prüfen.
+
+  | Ausgangslage | Fachliche Erwartung |
+  | --- | --- |
+  | Nur der Arbeitsplatz entfällt | Haushalt und Wohnung bleiben. Die Person verliert den alten Arbeitsweg. Ein erreichbarer freier Ersatzplatz wird angenommen. Ohne Ersatz entsteht bis zu einem neuen Angebot kein Arbeitsweg. |
+  | Die Wohnung eines mehrköpfigen Haushalts entfällt | Die Vorschau zählt den Haushalt einmal. Alle Mitglieder ziehen aus. Ihre Arbeitsplätze, Kabinen- und Schlangenplätze werden frei. |
+  | Einfacher Lift mit Halten 0–4, Rückgabe auf Etage 2 | Halte 0 und 1 bleiben aktiv. 2–4 sind außer Betrieb. Fahrgäste im entfallenden Teil werden umgesetzt. Kein späterer Fahrbefehl bedient den abgetrennten Teil. |
+  | Derselbe Lift, Rückgabe auf 0 oder 1 | Der ursprüngliche untere Halt fehlt oder es bleibt nur ein Halt. In beiden Fällen endet der gesamte Betrieb. |
+  | Im betroffenen Lift fahren ein ausziehendes Haushaltsmitglied und ein verbleibender Pendler | Das Mitglied verschwindet einmal, der Pendler bekommt genau einen Ort am nächsten weiter zugänglichen Anschluss seiner bisherigen Strecke, ersatzweise an der Rezeption. Alte Ziele und Reservierungen sind aufgelöst. |
+  | Im Flügel endet eine Rutschstange oder ein gerade begangener Weg | Die betroffene Verbindung entfällt, die Person erreicht einen gültigen Anschluss. Die Fläche lässt sich im ursprünglichen freien Zustand erneut mieten. |
+
+- [ ] `cargo test -p sim-core --test return_section` rot ausführen. In `crates/sim-core/src/return_section.rs` aus Abschnitt und aktuellem Zustand einen einzigen Änderungsplan ableiten. `preview` liest dessen `Impact` mit Mieteffekt, Auszügen, Arbeitsplatzverlusten, Wegen, Halten und Fahrgästen. Bei Bestätigung am Ausführungstick neu berechnen. Die Bestätigung trägt einen Vergleichswert über die angezeigten Folgen. Haben sich diese geändert, zeigt der Client die aktuelle Vorschau zur erneuten Bestätigung.
+- [ ] Bei bestätigtem Ergebnis alle Verträge, Standplätze, Fahrwünsche, Wege, Termine und Verbindungen gemeinsam aktualisieren. Eine stillgelegte Kabine entfernen, eine verbleibende Kabine gegebenenfalls am obersten verbleibenden Halt des unteren Teilstücks wieder einsetzen. Erneutes Anmieten erfordert erneutes Erschließen. Die Rezeption bleibt verfügbar.
+- [ ] Mit unverändertem Zustand muss die Vorschau den anschließend ausgeführten Folgen entsprechen. Ändert sich zwischen Vorschau und Befehl ein betroffener Haushalt, bleiben bei Ablehnung sämtliche Ressourcen erhalten. Einen ganzen Spieltag mit Einzug, Liftbau, Kaffee und Rückgabe als `godot/content/spieltag.json` festhalten und durch CLI und Export vergleichen. Paket bei grünem Fachtest und identischen Kontrollpunkten committen.
+
+### 11. Den Gebäudeschnitt spielbar und lesbar machen
+
+- [ ] In `godot/tests/selection.gd` eine Person anklicken, aus dem Bild schwenken, ihre Figurenansicht für jemand anderen verwenden und zurückschwenken. Die Auswahl folgt der ursprünglichen ID. Nach deren Auszug schließt sich die Auskunft oder meldet den Auszug. `--headless -- --test selection` muss die Verwechslung mit einer wiederverwendeten Ansicht erkennen.
+- [ ] In `godot/scripts/building_view.gd`, `person_panel.gd` und `godot/art/haus.tres` Etagen, Türen, Kabinen, Personen und Requisiten getrennt zeichnen. Pixelraster, gemeinsame Fuß- und Türanker, Sprite-Atlanten und Importfilter an einer tatsächlichen Figur neben der Kabine abstimmen. Sichtbereich mit Rand gesammelt abfragen, Ansichten wiederverwenden. Nahansicht zeigt Gesten und Becher, Übersicht erhält lesbare Warteschlangen.
+- [ ] In `main.tscn` die Eingabeaktionen für Auswahl, Schwenken, Zoomen, Pause, Bau, Rückgabe, Speichern und Laden verbinden. Die Rückgabeansicht zeigt Mietänderung, betroffene Haushalte, verlorene Arbeitsplätze, Halte und Fahrgäste vor dem Bestätigen. Texte für Wartezeiten verwenden die Werte aus `PersonInfo`.
+- [ ] Auswahltest grün ausführen. Im exportierten kleinen Haus vom Einzug bis zur Rückgabe spielen. Eine Person bis zur Bürotür verfolgen, nach Liftbau ihren neuen Weg erkennen, Stau am Vorraum durch Verbreiterung lindern und den Bau der Stange beobachten. Übersicht und Nahansicht mit der Stilreferenz vergleichen. Zwei gleichzeitig verständliche Handlungen ohne Eingabe mit Bild und Spieltick in `docs/abnahme/probespiel.md` festhalten. Die geprüfte Darstellung committen.
+
+### 12. Beide Desktop-Builds abnehmen
+
+- [ ] In `godot/tests/desktop_smoke.gd` den vollständigen Lauf als Testfall anlegen. Je Export aus einem frischen Verzeichnis starten, kleines Haus laden, Bauauftrag ausführen, mitten im Umsteigen speichern, Prozess neu starten, laden und bis zum letzten Kontrolltick spielen. Ein fehlendes mitgeliefertes Haus, ein abgelehnter Pflichtbefehl oder eine abweichende Prüfsumme ergibt Exitcode ungleich 0.
+- [ ] `.github/workflows/desktop.yml` um diesen Test gegen das ausgelieferte Programm auf Windows und Linux erweitern. Prüfsummen für `spieltag.json` mit dem CLI-Protokoll vergleichen. Ein separater Sichtlauf auf dem Referenz-PC öffnet denselben Export mit Grafik und dem großen Haus aus Paket 8.
+- [ ] Bei 1080p über den vollen Umsteigebereich schwenken und aus der Übersicht bis zur Tür zoomen. Bildzeiten p95 und p99 sowie die Zeiten für Kern, Adapter und Darstellung getrennt erfassen. Zum Ziel von 60 Bildern/s den Anteil der Bilder über 16,7 ms angeben. Spielstandsgröße und Ladezeit des großen Hauses protokollieren.
+- [ ] Exportjobs und Kernjob müssen grün sein. In `docs/abnahme/probespiel.md` Build, Messgerät, Ergebnisse und Abweichungen zu den Budgets vermerken. Erst nach bestandenem Probespiel und beiden erfolgreichen Neustarts die Artefakte als ersten spielbaren Desktop-Stand kennzeichnen und die Abnahme committen.
+
+**Spätere Plattformentscheidung.** Für einen Mobilprototyp sind zuerst native Bibliothek, Touch-Treffflächen, Speicherbudget und Speichern beim Wechsel in den Hintergrund auf einem echten Gerät zu prüfen. Für den Browser ist der erste Nachweis der gleiche Zwei-Etagen-Lauf mit WebAssembly, geeignetem Renderer und dauerhaftem Laden nach einem Neustart. Beide können denselben Kern und dieselbe Befehlsfolge verwenden.
