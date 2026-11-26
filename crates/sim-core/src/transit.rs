@@ -453,14 +453,18 @@ impl World {
         person.location = Location::At { place: at };
         person.remaining_route.clear();
         let destination = person.destination.take();
-        if let Some(goal) = destination.filter(|&goal| self.access(goal))
-            && let Some(route) = walk(&self.routes(), at, goal, tick)
-        {
+        if destination == Some(at) {
+            self.arrived_at(id, at);
+            return;
+        }
+        if let Some(goal) = destination.filter(|&goal| self.access(goal)) {
             self.state.route_searches = self.state.route_searches.saturating_add(1);
-            if !route.is_empty() {
+            if let Some(route) = walk(&self.routes(), at, goal, tick) {
                 self.start_route(id, at, goal, route);
+                return;
             }
         }
+        self.state.coffee_trips.remove(&id);
     }
 
     pub(crate) fn handle_lift_event(&mut self, event: LiftEvent) {

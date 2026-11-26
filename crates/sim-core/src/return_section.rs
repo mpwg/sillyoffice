@@ -248,6 +248,15 @@ impl World {
                 person.office = None;
             }
         }
+        for id in plan.routes.keys() {
+            let person = self.state.people.get_mut(id).unwrap();
+            if person
+                .destination
+                .is_some_and(|goal| plan.places.contains(&goal))
+            {
+                person.destination = None;
+            }
+        }
         self.state.coffee_trips.retain(|id, trip| {
             if plan.people_leaving.contains(id) {
                 return false;

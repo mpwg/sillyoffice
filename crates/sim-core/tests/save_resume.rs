@@ -162,3 +162,74 @@ fn a_saved_seed_produces_the_same_next_housing_choice() {
     );
     assert_eq!(after, serde_json::to_value(restored.checkpoint()).unwrap());
 }
+
+#[test]
+fn resumes_a_live_cabin_with_the_remaining_queue_in_order() {
+    use sim_core::{Location, PersonId};
+
+    let mut raw: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../godot/content/erstes-haus.json")).unwrap();
+    raw["initial"]["applicants"] = serde_json::json!([]);
+    raw["initial"]["people"] = serde_json::json!(
+        (1..=5)
+            .map(|id| serde_json::json!({
+                "id":id,"home":6,"office":7,"location":7
+            }))
+            .collect::<Vec<_>>()
+    );
+    for place in raw["geometry"]["places"].as_array_mut().unwrap() {
+        if place["id"] == 6 {
+            place["kind"] = serde_json::json!("home");
+        }
+        if place["id"] == 7 {
+            place["kind"] = serde_json::json!("office");
+        }
+    }
+    let scenario = Scenario::from_json(&serde_json::to_vec(&raw).unwrap()).unwrap();
+    let mut world = World::new(scenario.clone(), 42).unwrap();
+    world.step();
+    let queue = |world: &mut World, action| {
+        world
+            .submit_next(serde_json::from_value(action).unwrap())
+            .unwrap()
+    };
+    queue(&mut world, serde_json::json!({"kind":"unlock_lift"}));
+    queue(
+        &mut world,
+        serde_json::json!({"kind":"build_lift","stops":[1,2,3]}),
+    );
+    world.step();
+    for person in 1..=5 {
+        queue(
+            &mut world,
+            serde_json::json!({"kind":"commute", "person":person, "toward":"home"}),
+        );
+    }
+    let observed = (0..25).any(|_| {
+        world.step();
+        matches!(
+            world.person_location(PersonId(1)),
+            Some(Location::RidingLift { .. })
+        ) && matches!(
+            world.person_location(PersonId(5)),
+            Some(Location::WaitingLift { .. })
+        )
+    });
+    assert!(
+        observed,
+        "a real boarding must leave some passengers waiting"
+    );
+    let mut restored = World::restore(scenario, &world.save().unwrap()).unwrap();
+    for _ in 0..35 {
+        assert_eq!(world.checkpoint().checksum, restored.checkpoint().checksum);
+        world.step();
+        restored.step();
+    }
+    assert_eq!(world.transport_stats().waiting_people, 0);
+    assert_eq!(
+        world.person_location(PersonId(5)),
+        Some(Location::At {
+            place: sim_core::PlaceId(6)
+        })
+    );
+}

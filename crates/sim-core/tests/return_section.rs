@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use sim_core::{Action, Outcome, Scenario, World};
+use sim_core::{Action, Outcome, Replay, Scenario, World};
 
 fn action(value: Value) -> Action {
     serde_json::from_value(value).expect("supported return action")
@@ -96,4 +96,134 @@ fn stale_confirmation_preserves_a_household_until_its_return_is_confirmed() {
     assert_eq!(world.step().results[0].outcome, Outcome::Applied);
     assert!(world.explain(sim_core::PersonId(1)).is_none());
     assert!(world.explain(sim_core::PersonId(2)).is_none());
+}
+
+#[test]
+fn returning_an_active_coffee_destination_keeps_the_game_restorable() {
+    let mut house: Value =
+        serde_json::from_slice(include_bytes!("../../../godot/content/erstes-haus.json")).unwrap();
+    house["geometry"]["sections"][0]["end"] = json!(8);
+    house["geometry"]["sections"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":5,"floor":0,"start":8,"end":10,"rent_cost":3}));
+    let kiosk = house["geometry"]["places"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|place| place["id"] == 9)
+        .unwrap();
+    kiosk["section"] = json!(5);
+    house["initial"]["rented_sections"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!(5));
+    let scenario = Scenario::from_json(&serde_json::to_vec(&house).unwrap()).unwrap();
+
+    let replay = active_coffee_replay();
+    for (cut_after, expected_movement) in [(24, "walking"), (30, "riding_lift")] {
+        let mut world = replay.start(scenario.clone()).unwrap();
+        while world.tick() < cut_after {
+            world.step();
+        }
+        let mut return_action = json!({"kind":"return_section","section":5,"confirmation":""});
+        return_action["confirmation"] = json!(
+            world
+                .preview(&action(return_action.clone()))
+                .unwrap()
+                .confirmation
+                .unwrap()
+        );
+        world.submit_next(action(return_action)).unwrap();
+        assert_eq!(world.step().results[0].outcome, Outcome::Applied);
+        let checkpoint = serde_json::to_value(world.checkpoint()).unwrap();
+        assert_eq!(
+            checkpoint["state"]["people"]["1"]["location"]["kind"],
+            expected_movement
+        );
+
+        let saved = world.save().unwrap();
+        let restored = World::restore(scenario.clone(), &saved).unwrap_or_else(|error| {
+            panic!(
+                "Spielstand nach Rückgabe bei Tick {} ist unladbar: {error}",
+                world.tick()
+            )
+        });
+        assert_eq!(
+            serde_json::to_value(restored.checkpoint()).unwrap(),
+            checkpoint
+        );
+    }
+}
+
+#[test]
+fn returning_the_only_access_to_an_active_coffee_trip_keeps_the_game_restorable() {
+    let mut house: Value =
+        serde_json::from_slice(include_bytes!("../../../godot/content/erstes-haus.json")).unwrap();
+    house["geometry"]["sections"][0]["end"] = json!(5);
+    house["geometry"]["sections"]
+        .as_array_mut()
+        .unwrap()
+        .extend([
+            json!({"id":5,"floor":0,"start":5,"end":6,"rent_cost":3}),
+            json!({"id":6,"floor":0,"start":6,"end":10,"rent_cost":3}),
+        ]);
+    for place in house["geometry"]["places"].as_array_mut().unwrap() {
+        match place["id"].as_u64() {
+            Some(3) => place["section"] = json!(5),
+            Some(9) => place["section"] = json!(6),
+            _ => {}
+        }
+    }
+    house["initial"]["rented_sections"]
+        .as_array_mut()
+        .unwrap()
+        .extend([json!(5), json!(6)]);
+    let scenario = Scenario::from_json(&serde_json::to_vec(&house).unwrap()).unwrap();
+    let replay = active_coffee_replay();
+
+    for (cut_after, expected_anchor) in [(35, 4), (36, 9)] {
+        let mut world = replay.start(scenario.clone()).unwrap();
+        while world.tick() < cut_after {
+            world.step();
+        }
+        let mut return_action = json!({"kind":"return_section","section":5,"confirmation":""});
+        return_action["confirmation"] = json!(
+            world
+                .preview(&action(return_action.clone()))
+                .unwrap()
+                .confirmation
+                .unwrap()
+        );
+        world.submit_next(action(return_action)).unwrap();
+        assert_eq!(world.step().results[0].outcome, Outcome::Applied);
+        assert_eq!(
+            world.person_location(sim_core::PersonId(1)),
+            Some(sim_core::Location::At {
+                place: sim_core::PlaceId(expected_anchor),
+            })
+        );
+
+        let saved = world.save().unwrap();
+        let restored = World::restore(scenario.clone(), &saved).unwrap_or_else(|error| {
+            panic!(
+                "Spielstand nach Rückgabe bei Tick {} ist unladbar: {error}",
+                world.tick()
+            )
+        });
+        assert_eq!(
+            serde_json::to_value(restored.checkpoint()).unwrap(),
+            serde_json::to_value(world.checkpoint()).unwrap()
+        );
+    }
+}
+
+fn active_coffee_replay() -> Replay {
+    let mut day: Value =
+        serde_json::from_slice(include_bytes!("../../../godot/content/spieltag.json")).unwrap();
+    day["commands"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|command| command["tick"].as_u64().unwrap() <= 24);
+    Replay::from_json(&serde_json::to_vec(&day).unwrap()).unwrap()
 }
