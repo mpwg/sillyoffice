@@ -14,7 +14,7 @@ Starte `SillyOffice` aus dem Linux- oder Windows-Archiv. Die native Bibliothek b
 4. Widme Fläche 9 zum **Kiosk**. Schicke die Person vom Büro aus mehrmals zum Kiosk. Wiederholte Umwege können eine abwärts führende Rutschstange auslösen.
 5. Wähle einen gemieteten Abschnitt und **Rückgabe prüfen**. Die Vorschau zeigt Mietänderung, Auszüge, Arbeitsplatzverluste und betroffene Fahrgäste. Mit **Bestätigen** führst du die gezeigte Rückgabe am nächsten Tick aus. **Speichern** und **Laden** setzen auch eine laufende Fahrt fort.
 
-Die [Desktop-CI](https://github.com/mpwg/sillyoffice/actions/workflows/desktop.yml) stellt die nativen Programme und Prüfberichte als Archive bereit.
+Die [Abnahme](docs/abnahme/probespiel.md) und der [Lastmessbericht](docs/abnahme/berufsverkehr.md) dokumentieren die Prüfungen. Die [Desktop-CI](https://github.com/mpwg/sillyoffice/actions/workflows/desktop.yml) stellt die nativen Programme und Prüfberichte als Archive bereit.
 
 ## Kern und CLI
 
