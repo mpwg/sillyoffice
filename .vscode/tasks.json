@@ -1,0 +1,59 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "tasks": [
+    {
+      "label": "Silly Office: Prototyp starten",
+      "type": "process",
+      "command": "godot",
+      "args": ["--path", "godot"],
+      "dependsOn": "Silly Office: Godot-Projekt importieren",
+      "problemMatcher": []
+    },
+    {
+      "label": "Silly Office: Godot-Editor öffnen",
+      "type": "process",
+      "command": "godot",
+      "args": ["--editor", "--path", "godot"],
+      "dependsOn": "Silly Office: Godot-Projekt importieren",
+      "problemMatcher": []
+    },
+    {
+      "label": "Silly Office: Godot-Projekt importieren",
+      "type": "process",
+      "command": "godot",
+      "args": ["--headless", "--frame-delay", "1000", "--path", "godot", "--import"],
+      "dependsOn": "Silly Office: Rust-Erweiterung kopieren",
+      "hide": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Silly Office: Rust-Erweiterung kopieren",
+      "type": "process",
+      "command": "install",
+      "args": ["-D", "-m", "644", "target/release/libsim_godot.so", "godot/bin/libsim_godot.so"],
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          "$ErrorActionPreference = 'Stop'; New-Item -ItemType Directory -Force -Path 'godot/bin' | Out-Null; Copy-Item -LiteralPath 'target/release/sim_godot.dll' -Destination 'godot/bin/sim_godot.dll' -Force"
+        ]
+      },
+      "dependsOn": "Silly Office: Rust-Erweiterung bauen",
+      "hide": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Silly Office: Rust-Erweiterung bauen",
+      "type": "process",
+      "command": "cargo",
+      "args": ["build", "--locked", "--release", "--target-dir", "target", "-p", "sim-godot"],
+      "hide": true,
+      "problemMatcher": []
+    }
+  ]
+}

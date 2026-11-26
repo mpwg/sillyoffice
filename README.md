@@ -16,6 +16,12 @@ Starte `SillyOffice` aus dem Linux- oder Windows-Archiv. Die native Bibliothek b
 
 Die [Abnahme](docs/abnahme/probespiel.md) und der [Lastmessbericht](docs/abnahme/berufsverkehr.md) dokumentieren die Prüfungen. Die [Desktop-CI](https://github.com/mpwg/sillyoffice/actions/workflows/desktop.yml) stellt die nativen Programme und Prüfberichte als Archive bereit.
 
+## Start aus VS Code
+
+Öffne das Repository in VS Code und wähle in der Befehlspalette **Tasks: Run Task**. **Silly Office: Prototyp starten** öffnet das Spiel. **Silly Office: Godot-Editor öffnen** öffnet das Projekt zur Bearbeitung.
+
+Beide Aufgaben bauen und kopieren die Rust-Erweiterung und importieren das Godot-Projekt. Sie benötigen `cargo` und Godot **4.6 stable** als `godot` im PATH unter Linux oder Windows.
+
 ## Kern und CLI
 
 Rust und Cargo sind in [rust-toolchain.toml](rust-toolchain.toml) festgelegt. Szenarien und Abläufe sind versioniertes JSON.
