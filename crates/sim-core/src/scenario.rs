@@ -1,4 +1,4 @@
-use std::num::NonZeroU64;
+use std::num::{NonZeroU32, NonZeroU64};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -22,7 +22,14 @@ macro_rules! scenario_ids {
 }
 
 scenario_ids!(
-    FloorId, SectionId, PlaceId, WalkwayId, StairId, LiftStopId, PersonId
+    FloorId,
+    SectionId,
+    PlaceId,
+    WalkwayId,
+    StairId,
+    LiftStopId,
+    PersonId,
+    HouseholdId
 );
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -30,6 +37,8 @@ pub struct Scenario {
     pub(crate) version: u32,
     pub(crate) geometry: Geometry,
     pub(crate) initial: InitialOccupancy,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rules: Option<OperatingRules>,
 }
 
 #[derive(Deserialize)]
@@ -43,6 +52,8 @@ struct ScenarioV1 {
     version: u32,
     geometry: Geometry,
     initial: InitialOccupancy,
+    #[serde(default)]
+    rules: Option<OperatingRules>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -90,6 +101,7 @@ pub enum PlaceKind {
     Office,
     Home,
     Landing,
+    Space,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -127,6 +139,8 @@ pub struct InitialOccupancy {
     pub balance: i64,
     pub rented_sections: Vec<SectionId>,
     pub people: Vec<InitialPerson>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub applicants: Vec<Applicant>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -136,6 +150,28 @@ pub struct InitialPerson {
     pub location: PlaceId,
     pub home: PlaceId,
     pub office: PlaceId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub household: Option<HouseholdId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Applicant {
+    pub id: HouseholdId,
+    pub size: NonZeroU32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OperatingRules {
+    pub day_ticks: NonZeroU64,
+    pub home_income: u32,
+    pub office_income: u32,
+    pub designation_cost: u32,
+    pub lift_cost: u32,
+    pub population_points: u32,
+    pub coffee_threshold: NonZeroU32,
+    pub initiative_ticks: NonZeroU64,
 }
 
 #[derive(Debug, Error)]
@@ -208,11 +244,13 @@ impl Scenario {
             version,
             geometry,
             initial,
+            rules,
         } = serde_json::from_slice(bytes)?;
         let mut scenario = Self {
             version,
             geometry,
             initial,
+            rules,
         };
         scenario.canonicalize()?;
         scenario.validate()?;
@@ -232,6 +270,11 @@ impl Scenario {
     }
 
     fn canonicalize(&mut self) -> Result<(), DataError> {
+        sort_unique(
+            &mut self.initial.applicants,
+            |applicant| applicant.id,
+            "Interessent",
+        )?;
         let geometry = &mut self.geometry;
         sort_unique(&mut geometry.floors, |floor| floor.id, "Etage")?;
         sort_unique(&mut geometry.sections, |section| section.id, "Abschnitt")?;

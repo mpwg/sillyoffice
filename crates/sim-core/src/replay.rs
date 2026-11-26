@@ -59,8 +59,8 @@ impl Replay {
 
     pub fn start(&self, scenario: Scenario) -> Result<World, ReplayError> {
         let mut world = World::new(scenario, self.seed)?;
-        for &command in &self.commands {
-            world.submit(command)?;
+        for command in &self.commands {
+            world.submit(command.clone())?;
         }
         Ok(world)
     }

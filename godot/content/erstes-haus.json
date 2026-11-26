@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "rules": {
+    "day_ticks": 60,
+    "home_income": 18,
+    "office_income": 12,
+    "designation_cost": 4,
+    "lift_cost": 35,
+    "population_points": 1,
+    "coffee_threshold": 2,
+    "initiative_ticks": 5
+  },
+  "geometry": {
+    "floors": [{"id":0,"width":14},{"id":1,"width":14},{"id":2,"width":14}],
+    "sections": [
+      {"id":1,"floor":0,"start":0,"end":10,"rent_cost":3},
+      {"id":2,"floor":1,"start":0,"end":10,"rent_cost":3},
+      {"id":3,"floor":2,"start":0,"end":8,"rent_cost":4},
+      {"id":4,"floor":2,"start":8,"end":14,"rent_cost":6}
+    ],
+    "places": [
+      {"id":1,"section":1,"column":2,"kind":"reception"},
+      {"id":3,"section":1,"column":5,"kind":"landing"},
+      {"id":4,"section":2,"column":5,"kind":"landing"},
+      {"id":6,"section":1,"column":1,"kind":"space"},
+      {"id":7,"section":3,"column":1,"kind":"space"},
+      {"id":8,"section":4,"column":12,"kind":"space"},
+      {"id":9,"section":1,"column":8,"kind":"space"},
+      {"id":10,"section":3,"column":5,"kind":"landing"},
+      {"id":11,"section":2,"column":1,"kind":"space"},
+      {"id":12,"section":4,"column":9,"kind":"space"}
+    ],
+    "walkways": [
+      {"id":1,"from":1,"to":3,"ticks":3,"bidirectional":true},
+      {"id":2,"from":6,"to":1,"ticks":2,"bidirectional":true},
+      {"id":3,"from":10,"to":7,"ticks":3,"bidirectional":true},
+      {"id":4,"from":3,"to":9,"ticks":3,"bidirectional":true},
+      {"id":5,"from":4,"to":11,"ticks":3,"bidirectional":true},
+      {"id":6,"from":10,"to":12,"ticks":4,"bidirectional":true}
+    ],
+    "stairs": [
+      {"id":1,"from":3,"to":4,"ticks":8},
+      {"id":2,"from":4,"to":10,"ticks":8}
+    ],
+    "lift_stops": [
+      {"id":1,"floor":0,"column":5},
+      {"id":2,"floor":1,"column":5},
+      {"id":3,"floor":2,"column":5}
+    ]
+  },
+  "initial": {
+    "balance": 150,
+    "rented_sections": [1,2,3],
+    "people": [],
+    "applicants": [{"id":1,"size":1}]
+  }
+}
