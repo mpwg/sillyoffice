@@ -227,3 +227,72 @@ fn active_coffee_replay() -> Replay {
         .retain(|command| command["tick"].as_u64().unwrap() <= 24);
     Replay::from_json(&serde_json::to_vec(&day).unwrap()).unwrap()
 }
+
+#[test]
+fn one_rider_leaves_the_building_while_the_other_gets_one_safe_stop() {
+    use sim_core::{HouseholdId, LiftStopId, Location, PersonId, PlaceId};
+
+    let mut house: Value =
+        serde_json::from_slice(include_bytes!("../../../godot/content/erstes-haus.json")).unwrap();
+    house["initial"]["applicants"] = json!([]);
+    house["initial"]["rented_sections"] = json!([1, 2, 3, 4]);
+    house["initial"]["people"] = json!([
+        {"id":1,"home":7,"office":9,"location":9},
+        {"id":2,"home":12,"office":9,"location":9}
+    ]);
+    for place in house["geometry"]["places"].as_array_mut().unwrap() {
+        match place["id"].as_u64() {
+            Some(7 | 12) => place["kind"] = json!("home"),
+            Some(9) => place["kind"] = json!("office"),
+            _ => {}
+        }
+    }
+    let scenario = Scenario::from_json(&serde_json::to_vec(&house).unwrap()).unwrap();
+    let mut world = World::new(scenario.clone(), 42).unwrap();
+    world.step();
+    for value in [
+        json!({"kind":"unlock_lift"}),
+        json!({"kind":"build_lift","stops":[1,2,3]}),
+    ] {
+        world.submit_next(action(value)).unwrap();
+    }
+    world.step();
+    for person in [1, 2] {
+        world
+            .submit_next(action(
+                json!({"kind":"commute","person":person,"toward":"home"}),
+            ))
+            .unwrap();
+    }
+    let in_car = (0..20).any(|_| {
+        world.step();
+        [PersonId(1), PersonId(2)].into_iter().all(|person| {
+            matches!(
+                world.person_location(person),
+                Some(Location::RidingLift { .. })
+            )
+        })
+    });
+    assert!(in_car);
+
+    let mut command = json!({"kind":"return_section","section":3});
+    let preview = world.preview(&action(command.clone())).unwrap();
+    assert_eq!(preview.households_leaving, [HouseholdId(1)]);
+    assert_eq!(preview.affected_people, [PersonId(1), PersonId(2)]);
+    assert_eq!(preview.remaining_stops, [LiftStopId(1), LiftStopId(2)]);
+    command["confirmation"] = json!(preview.confirmation);
+    world.submit_next(action(command)).unwrap();
+    assert_eq!(world.step().results[0].outcome, Outcome::Applied);
+    assert!(world.person_location(PersonId(1)).is_none());
+
+    for _ in 0..15 {
+        world.step();
+    }
+    assert!(matches!(
+        world.person_location(PersonId(2)),
+        Some(Location::At { place: PlaceId(4) })
+    ));
+    assert_eq!(world.transport_stats().waiting_people, 0);
+    let restored = World::restore(scenario, &world.save().unwrap()).unwrap();
+    assert_eq!(world.checkpoint().checksum, restored.checkpoint().checksum);
+}

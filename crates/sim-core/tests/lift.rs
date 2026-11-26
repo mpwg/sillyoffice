@@ -140,3 +140,53 @@ fn lift_preview_identifies_the_first_unrented_halt_before_unlocking() {
         sim_core::Rejection::LiftLocked
     );
 }
+
+#[test]
+fn an_empty_building_keeps_its_unlock_and_a_second_move_in_earns_no_point() {
+    let mut raw: Value =
+        serde_json::from_slice(include_bytes!("../../../godot/content/erstes-haus.json")).unwrap();
+    raw["initial"]["applicants"] = json!([{"id":1,"size":1},{"id":2,"size":1}]);
+    let mut world = World::new(
+        Scenario::from_json(&serde_json::to_vec(&raw).unwrap()).unwrap(),
+        42,
+    )
+    .unwrap();
+    let mut number = 1;
+    let mut advance = |world: &mut World, actions: Vec<Value>| {
+        for value in actions {
+            submit(world, number, action(value));
+            number += 1;
+        }
+        for result in world.step().results {
+            assert_eq!(result.outcome, Outcome::Applied);
+        }
+    };
+    advance(
+        &mut world,
+        vec![
+            json!({"kind":"rent_section","section":4}),
+            json!({"kind":"designate","place":12,"use":"home"}),
+            json!({"kind":"designate","place":7,"use":"office"}),
+        ],
+    );
+    advance(&mut world, vec![json!({"kind":"unlock_lift"})]);
+    let mut command = json!({"kind":"return_section","section":4});
+    command["confirmation"] = json!(
+        world
+            .preview(&action(command.clone()))
+            .unwrap()
+            .confirmation
+    );
+    advance(&mut world, vec![command]);
+    assert!(world.person_location(sim_core::PersonId(1)).is_none());
+    assert!(world.person_location(sim_core::PersonId(2)).is_none());
+
+    advance(
+        &mut world,
+        vec![json!({"kind":"designate","place":6,"use":"home"})],
+    );
+    assert!(world.person_location(sim_core::PersonId(2)).is_some());
+    let state = serde_json::to_value(world.checkpoint()).unwrap();
+    assert_eq!(state["state"]["development_points"], 0);
+    assert_eq!(state["state"]["lift_unlocked"], true);
+}
