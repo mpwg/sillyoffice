@@ -119,3 +119,24 @@ fn a_simple_lift_can_serve_fifteen_floors() {
         sim_core::Rejection::InvalidLiftStops
     );
 }
+
+#[test]
+fn lift_preview_identifies_the_first_unrented_halt_before_unlocking() {
+    let mut raw: Value =
+        serde_json::from_slice(include_bytes!("../../../godot/content/erstes-haus.json")).unwrap();
+    raw["initial"]["rented_sections"] = json!([1]);
+    let world = World::new(
+        Scenario::from_json(&serde_json::to_vec(&raw).unwrap()).unwrap(),
+        4,
+    )
+    .unwrap();
+    let build = action(json!({"kind":"build_lift","stops":[1,2,3]}));
+    assert_eq!(
+        world.first_blocked_lift_stop(&build),
+        Some(sim_core::LiftStopId(2))
+    );
+    assert_eq!(
+        world.preview(&build).unwrap_err(),
+        sim_core::Rejection::LiftLocked
+    );
+}

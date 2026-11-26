@@ -302,6 +302,13 @@ func _handle_action(action: Dictionary) -> void:
 			return
 		if not preview.get("ok", false):
 			_notice.text = preview.get("error", "Die Vorschau konnte nicht erstellt werden.")
+			if action.kind == "build_lift" and preview.get("first_blocked_stop") != null:
+				var stops := PackedStringArray()
+				for stop in action.stops:
+					stops.append("H%d" % int(stop))
+				_notice.text += "  Halte %s · erster blockierter Halt H%d" % [
+					", ".join(stops), int(preview.first_blocked_stop),
+				]
 			return
 		var cost: int = int(preview.impact.get("immediate_cost", 0))
 		if cost > 0:

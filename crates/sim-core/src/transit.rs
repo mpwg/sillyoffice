@@ -58,6 +58,34 @@ impl World {
             .map(|section| section.id)
     }
 
+    pub fn first_blocked_lift_stop(&self, action: &crate::Action) -> Option<LiftStopId> {
+        let (stops, express) = match action {
+            crate::Action::BuildLift { stops } => (stops, false),
+            crate::Action::BuildExpress { stops } => (stops, true),
+            _ => return None,
+        };
+        self.lift_stop_obstruction(stops, express)
+            .map(|(stop, _)| stop)
+    }
+
+    fn lift_stop_obstruction(
+        &self,
+        stops: &[LiftStopId],
+        express: bool,
+    ) -> Option<(LiftStopId, Rejection)> {
+        stops.iter().find_map(|&stop| {
+            if self.stop_place(stop).is_none() {
+                Some((stop, Rejection::LiftStopBlocked))
+            } else if self.state.lifts.lines().any(|(lift, line)| {
+                self.state.express_lifts.contains(&lift) == express && line.stops().contains(&stop)
+            }) {
+                Some((stop, Rejection::LiftStopOccupied))
+            } else {
+                None
+            }
+        })
+    }
+
     pub(crate) fn preview_lift(
         &self,
         stops: &[LiftStopId],
@@ -86,15 +114,8 @@ impl World {
         {
             return Err(Rejection::InvalidLiftStops);
         }
-        for &stop in stops {
-            if self.stop_place(stop).is_none() {
-                return Err(Rejection::LiftStopBlocked);
-            }
-            if self.state.lifts.lines().any(|(lift, line)| {
-                self.state.express_lifts.contains(&lift) == express && line.stops().contains(&stop)
-            }) {
-                return Err(Rejection::LiftStopOccupied);
-            }
+        if let Some((_, reason)) = self.lift_stop_obstruction(stops, express) {
+            return Err(reason);
         }
         let cost = self.scenario.rules.map_or(0, |rules| rules.lift_cost);
         if self.state.balance < i64::from(cost) {

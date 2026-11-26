@@ -42,18 +42,20 @@ impl SimSession {
 
     #[func]
     fn preview_json(&self, action_json: GString) -> GString {
-        let result = self
-            .world
-            .as_ref()
-            .ok_or("Es ist keine Partie geladen.".to_owned())
-            .and_then(|world| {
-                let action: Action = serde_json::from_str(&action_json.to_string())
-                    .map_err(|error| error.to_string())?;
-                world.preview(&action).map_err(|error| error.to_string())
-            });
-        match result {
+        let Some(world) = &self.world else {
+            return to_json(&json!({"ok": false, "error": "Es ist keine Partie geladen."}));
+        };
+        let action = match serde_json::from_str::<Action>(&action_json.to_string()) {
+            Ok(action) => action,
+            Err(error) => return to_json(&json!({"ok": false, "error": error.to_string()})),
+        };
+        match world.preview(&action) {
             Ok(impact) => to_json(&json!({"ok": true, "impact": impact})),
-            Err(error) => to_json(&json!({"ok": false, "error": error})),
+            Err(error) => to_json(&json!({
+                "ok": false,
+                "error": error.to_string(),
+                "first_blocked_stop": world.first_blocked_lift_stop(&action),
+            })),
         }
     }
 

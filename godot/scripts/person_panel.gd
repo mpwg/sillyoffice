@@ -54,6 +54,8 @@ func present(person_id: int, record: Dictionary) -> void:
 	var location_text := _location_text(location.kind, int(anchor.get("floor", 0)))
 	if location.kind == "at":
 		location_text += " · %s" % _place_name(anchor)
+	elif location.kind == "waiting_lift":
+		location_text += " · Halt H%d" % int(location.stop)
 	var destination: Variant = record.get("destination")
 	if destination is Dictionary:
 		location_text += " → %s" % _place_name(destination)
