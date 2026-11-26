@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "geometry": {
+    "floors": [
+      { "id": 0, "width": 12 },
+      { "id": 1, "width": 12 }
+    ],
+    "sections": [
+      { "id": 1, "floor": 0, "start": 0, "end": 8, "rent_cost": 0 },
+      { "id": 2, "floor": 1, "start": 0, "end": 8, "rent_cost": 0 },
+      { "id": 3, "floor": 1, "start": 8, "end": 12, "rent_cost": 25 }
+    ],
+    "places": [
+      { "id": 1, "section": 1, "column": 1, "kind": "reception" },
+      { "id": 2, "section": 2, "column": 1, "kind": "office" },
+      { "id": 3, "section": 1, "column": 5, "kind": "landing" },
+      { "id": 4, "section": 2, "column": 5, "kind": "landing" },
+      { "id": 5, "section": 1, "column": 0, "kind": "home" }
+    ],
+    "walkways": [
+      { "id": 1, "from": 1, "to": 3, "ticks": 4, "bidirectional": true },
+      { "id": 2, "from": 4, "to": 2, "ticks": 4, "bidirectional": true }
+    ],
+    "stairs": [
+      { "id": 1, "from": 3, "to": 4, "ticks": 4 }
+    ],
+    "lift_stops": [
+      { "id": 1, "floor": 0, "column": 6 },
+      { "id": 2, "floor": 1, "column": 6 }
+    ]
+  },
+  "initial": {
+    "balance": 100,
+    "rented_sections": [1, 2],
+    "people": [
+      { "id": 1, "location": 1, "home": 5, "office": 2 }
+    ]
+  }
+}

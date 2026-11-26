@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "seed": 42,
+  "checkpoints": [4, 5, 12],
+  "commands": [
+    {"tick": 5, "number": 2, "action": {"kind": "rent_section", "section": 3}},
+    {"tick": 5, "number": 1, "action": {"kind": "rent_section", "section": 3}}
+  ]
+}
