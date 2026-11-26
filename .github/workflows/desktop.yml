@@ -1,0 +1,141 @@
+name: Desktop-Exporte
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+env:
+  GODOT_RELEASE: 4.6-stable
+  GODOT_TEMPLATE_VERSION: 4.6.stable
+  TEMPLATE_SHA256: 3b30ac8c1772f25f5dfa5f65922cab0a90e7b960176891237c5772515ebccc46
+
+jobs:
+  export:
+    name: ${{ matrix.preset }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            preset: Linux
+            editor_archive: linux.x86_64.zip
+            editor_executable: linux.x86_64
+            editor_sha256: 6bcc59dfd1d670e918c77eae06e82b9dc5699de13d353dc3a4b3b6b307b6dc06
+            templates: linux_*.x86_64
+            template_libraries: libaccesskit.x86_64.so
+            library: libsim_godot.so
+            executable: SillyOffice
+          - runner: windows-2025
+            preset: Windows
+            editor_archive: win64.exe.zip
+            editor_executable: win64_console.exe
+            editor_sha256: 5c9177625c0dca18c92ba6328203c7b5a9596c85ef9d7c968396f0272d8f10d9
+            templates: windows_*_x86_64*.exe
+            template_libraries: '*.x86_64.dll'
+            library: sim_godot.dll
+            executable: SillyOffice.exe
+    defaults:
+      run:
+        shell: bash
+    env:
+      EDITOR_EXECUTABLE: ${{ matrix.editor_executable }}
+      EXPORT_PRESET: ${{ matrix.preset }}
+      EXECUTABLE: ${{ matrix.executable }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Editor und Exportvorlagen vorbereiten
+        env:
+          EDITOR_ARCHIVE: ${{ matrix.editor_archive }}
+          EDITOR_SHA256: ${{ matrix.editor_sha256 }}
+          TEMPLATES: ${{ matrix.templates }}
+          TEMPLATE_LIBRARIES: ${{ matrix.template_libraries }}
+        run: |
+          work_dir="${RUNNER_TEMP//\\//}"
+          cd "$work_dir"
+          release_url="https://github.com/godotengine/godot-builds/releases/download/$GODOT_RELEASE"
+          archive_prefix="Godot_v${GODOT_RELEASE}_"
+          curl --fail --location --retry 3 --silent --show-error \
+            "$release_url/$archive_prefix$EDITOR_ARCHIVE" --output editor.zip
+          curl --fail --location --retry 3 --silent --show-error \
+            "$release_url/${archive_prefix}export_templates.tpz" --output templates.tpz
+          printf '%s  %s\n' "$EDITOR_SHA256" editor.zip "$TEMPLATE_SHA256" templates.tpz |
+            sha256sum --check
+          7z x -y -ogodot editor.zip
+          chmod +x "godot/$archive_prefix$EDITOR_EXECUTABLE"
+          touch godot/_sc_
+          templates_dir="godot/editor_data/export_templates/$GODOT_TEMPLATE_VERSION"
+          7z e -y "-o$templates_dir" templates.tpz \
+            "templates/$TEMPLATES" "templates/$TEMPLATE_LIBRARIES"
+
+      - name: Native Erweiterung und CLI bauen
+        env:
+          LIBRARY: ${{ matrix.library }}
+        run: |
+          cargo build --locked --release -p sim-godot -p sim-cli
+          mkdir -p godot/bin
+          cp "target/release/$LIBRARY" godot/bin/
+
+      - name: Projekt importieren und exportieren
+        run: |
+          work_dir="${RUNNER_TEMP//\\//}"
+          editor="$work_dir/godot/Godot_v${GODOT_RELEASE}_$EDITOR_EXECUTABLE"
+          export_dir="$work_dir/sillyoffice-export"
+          mkdir "$export_dir"
+          # Give Godot 4.6 time to generate the extension docs on a cold import.
+          # https://github.com/godotengine/godot/issues/111048
+          "$editor" --headless --frame-delay 1000 --path godot --import
+          "$editor" --headless --path godot --export-release "$EXPORT_PRESET" \
+            "$export_dir/$EXECUTABLE"
+          test -s "$export_dir/$EXECUTABLE"
+
+      - name: Export mit der CLI-Referenz vergleichen
+        run: |
+          work_dir="${RUNNER_TEMP//\\//}"
+          reference="$work_dir/replay-cli.json"
+          cargo run --locked --release -p sim-cli -- replay \
+            godot/content/zwei-etagen.json godot/content/erster-weg.json --out "$reference"
+          cd "$work_dir/sillyoffice-export"
+          run_replay() {
+            local output=$1
+            shift
+            # Python wartet auch unter Windows auf die eigenständige GUI-Anwendung.
+            python -c 'import subprocess, sys; sys.exit(subprocess.call(sys.argv[1:]))' \
+              "./$EXECUTABLE" --headless --log-file "$output.log" -- \
+              --replay erster-weg --out "$work_dir/sillyoffice-export/$output.json" \
+              --reference "$reference" "$@" || {
+                cat "$output.log"
+                return 1
+              }
+          }
+          run_replay replay
+          run_replay replay-alternate --camera-alternate
+          python - "$reference" replay.json replay-alternate.json <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          reference, *reports = map(Path, sys.argv[1:])
+          expected = json.loads(reference.read_text(encoding="utf-8"))
+          for report in reports:
+              actual = json.loads(report.read_text(encoding="utf-8"))
+              assert actual == expected, f"{report} weicht von {reference.name} ab."
+          PY
+
+      - name: Export und Replay-Berichte archivieren
+        run: |
+          work_dir="${RUNNER_TEMP//\\//}"
+          cd "$work_dir"
+          tar -czf "SillyOffice-$EXPORT_PRESET.tar.gz" sillyoffice-export replay-cli.json
+
+      - name: Archiv als CI-Artefakt bereitstellen
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ runner.temp }}/SillyOffice-${{ matrix.preset }}.tar.gz
+          archive: false
+          if-no-files-found: error

@@ -17,3 +17,6 @@ pub use command::{
 };
 pub use replay::{Replay, ReplayError, ReplayReport};
 pub use world::{Checkpoint, CoreState, Location, Person, TickReport, WalkSegment, World};
+
+mod view;
+pub use view::{ViewFrame, ViewRect};

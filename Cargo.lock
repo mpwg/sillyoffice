@@ -346,6 +346,7 @@ name = "sim-godot"
 version = "0.1.0"
 dependencies = [
  "godot",
+ "serde",
  "serde_json",
  "sim-core",
 ]
