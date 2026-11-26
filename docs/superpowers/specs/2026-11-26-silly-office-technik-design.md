@@ -1,6 +1,6 @@
 # Silly Office – technischer Entwurf
 
-**Stand 26. November 2026, Entwurf zur Freigabe.** Gewählt sind Godot 4 und der PC als erstes Ziel. Der Nutzer wünscht ein Hochhaus mit ungefähr 100 Stockwerken und einen Simulationskern, der grundsätzlich unabhängig von der Oberfläche läuft. Rust, die konkrete Anbindung, die Beispielbelegung und die Leistungsziele unten sind technische Vorschläge.
+**Stand 26. November 2026.** Festgelegt sind Godot 4 für den ersten PC-Client, ein oberflächenunabhängiger Simulationskern in Rust und die beiden Rückgaberegeln für Arbeitsplätze und einfache Lifte. Auslegungsziel sind ungefähr 100 Stockwerke. Die Beispielbelegung und die Leistungsbudgets dienen der ersten Messung. Die Arbeitsschritte stehen im [Umsetzungsplan](../plans/2026-11-26-silly-office-umsetzung.md).
 
 ## Was der erste Bauabschnitt beweisen soll
 
@@ -60,7 +60,7 @@ Die Rezeption verwaltet Interessenten. Wohnraum und Arbeitsplatz werden für den
 
 Beim Kaffeegang prüft der Kern, ob wiederkehrende Umwege eine zulässige Bewohnerverbindung rechtfertigen. Er erzeugt die Rutschstange, hält ihren Anlass fest und aktualisiert den Graphen. Bei einer Abschnittsrückgabe zeigt eine Vorschau Mieteffekt, Auszüge und entfallende Wege. Die bestätigte Rückgabe ändert die angemietete Fläche, Bewohnerverbindungen, Verträge und Wege gemeinsam an einer Tickgrenze. Personen auf einem entfernten Wegstück erhalten im selben Vorgang einen gültigen Anschluss. Vorgeschlagene Regel für unvermeidbare Verdrängung ist der nächste weiter zugängliche Anschluss der bisherigen Strecke, ersatzweise die Rezeption. Ausgezogene Mieter geben ihre Plätze in Warteschlangen und Kabinen frei.
 
-**Zwei vorgeschlagene Rückgaberegeln für das erste Haus.** Die Vorschau und die bestätigte Rückgabe verwenden dieselbe Berechnung.
+**Zwei freigegebene Rückgaberegeln für das erste Haus.** Die Vorschau und die bestätigte Rückgabe verwenden dieselbe Berechnung.
 
 - Entfällt nur der Arbeitsplatz, bleibt der Haushalt in seiner Wohnung. Die Person gibt ihren Arbeitsplatz frei und sucht einen anderen erreichbaren, freien Platz. Bis dahin entfällt ihr Arbeitsweg. Wird ihre Wohnung zurückgegeben, zieht der Haushalt gemeinsam aus und gibt seine übrigen Plätze frei. Die Vorschau zählt ausziehende Haushalte und verbleibende Personen mit verlorenem Arbeitsplatz getrennt.
 - Wird ein mittleres Geschoss eines einfachen Lifts zurückgegeben, bleibt die vom ursprünglichen unteren Endhalt aus zusammenhängende Strecke mit mindestens zwei Halten betriebsfähig. Der obere Teil wird stillgelegt. Entfällt der untere Endhalt oder bleibt nur ein Halt, endet der gesamte Betrieb. Die Vorschau markiert die verbleibenden Halte und betroffenen Fahrgäste. Eine Kabine im entfallenden Teil wird bei der Rückgabe geleert. Verbleibende Fahrgäste erreichen nach der oben beschriebenen Anschlussregel einen gültigen Ort und planen von dort neu. Ein später neu angemietetes Geschoss kann der Spieler wieder erschließen.

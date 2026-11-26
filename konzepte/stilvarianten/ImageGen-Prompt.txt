@@ -1,0 +1,21 @@
+Erstelle zehn eigenständige Konzeptbilder für „Silly Office“, ein humorvolles Aufbauspiel in einem zusammenhängenden Hochhaus, das sich nach oben, links und rechts erweitern lässt. Liefere pro Stil ein eigenes bildfüllendes Bild im Querformat 16:9.
+
+Nutze das angehängte Bild 3 als Referenz für den frontalen Gebäudeschnitt, die gestapelten Etagen und den Maßstab der Menschen. Entwickle Figuren, Proportionen, Architekturdetails, Materialien, Farbpalette und Beleuchtung für jede Variante neu. An Fallout Shelter interessiert mich, wie gut man mehrere offene Räume gleichzeitig lesen kann. An Die Siedler II liebe ich die schönen Gebäude und das geordnete Chaos vieler kleiner Menschen, die erkennbar von A nach B unterwegs sind. Gib Silly Office eine eigene visuelle Identität.
+
+Zeige zehnmal denselben Dienstagmorgen um 08:47 Uhr. Die Fassade ist zur Kamera hin geöffnet. Oben liegen Wohnungen und ein Kindergarten, in der Mitte ein Aufzugsbahnhof mit Kaffeekiosk und Büros, unten die Rezeption mit wartenden Mietinteressenten. Ein durchgehender Schacht und ein Treppenhaus verbinden die Geschosse. Der Komplex setzt sich an den Bildrändern fort. Behalte Kameraposition, Ausschnitt und Raumverteilung über alle zehn Bilder hinweg bei.
+
+Das Herz des Bildes ist das Gewusel. Am Aufzug treten zwei Fahrgäste heraus, während jemand mit einem sperrigen Ficus hineinwill. Eine Pendlerin schaut verärgert auf die Uhr. Im Büro beugen sich zwei Kollegen über die kaputte Kaffeemaschine. Ein dritter rutscht mit seinem leeren Becher an einer selbst montierten Feuerwehrstange zum Kiosk hinunter. Zeige unterschiedliche Silhouetten, Blickrichtungen und Bewegungsphasen. Die Laufwege, Türen und der Platz zum Umsteigen sollen auch als kleines Vorschaubild verständlich sein. Lass den Humor aus den Handlungen entstehen. Halte das Bild frei von HUD, Titeln, Logos und längeren Texten.
+
+Zehn eigenständige Kunstrichtungen, jeweils als Einzelbild:
+01 — Pixelwimmelbild. Handgesetzte Pixelcluster, markante kleine Sprites, detailreiche Raumkanten und warme Lichtinseln wie bei einem liebevoll ausgestatteten Aufbauspiel der 1990er.
+02 — Aquarell und Feder. Locker gezeichnete Menschen, unregelmäßige Tuschelinien, lasierende Farbe auf körnigem Papier, lichtdurchflutete Architektur.
+03 — Papiertheater. Geschichtete Bögen aus gefärbtem Karton, sichtbare Schnittkanten, gefaltete Türen, bewegliche Papierfiguren und tiefe Schlagschatten.
+04 — Knetfiguren. Handgeformte Stop-Motion-Puppen mit Fingerabdrücken, ausdrucksstarken Brauen und leicht schiefem Mobiliar. Eine physische Miniaturkulisse, frontal fotografiert.
+05 — Zeichentrickfilm. Handgemalte Hintergründe, klares seitliches Morgenlicht, fein beobachtete Körpersprache und ausdrucksstarke Figuren in klassischen Animationsposen.
+06 — Büromanga. Schwarze Tusche, weiße Flächen, Rasterfolie und pointierte Bewegungslinien. Der ganze Querschnitt bildet ein einziges großes Panel.
+07 — Neon-Nachtschicht. In diesem fensterarmen Gebäudeteil leuchtet auch morgens Kunstlicht. Petrol und Violett, warme Kioskfenster, Spiegelungen und prägnante Silhouetten.
+08 — Geometrische Moderne. Kantige Figuren mit langen Gliedmaßen, asymmetrische Möbel, große grafische Farbflächen und spielerische Formen der 1960er-Jahre.
+09 — Humoristischer Kupferstich. Feine Schraffuren, verzierte gusseiserne Liftschächte, geschnitztes Holz und winzige, präzise gezeichnete Alltagsgesten.
+10 — Klemmbausteine. Ein gebautes Miniaturhaus aus glänzendem Kunststoff mit sichtbaren Noppen, beweglichen Aufzugskabinen, blockigen Möbeln und kleinen Spielfiguren.
+
+Falls du pro Aufruf nur ein Bild erzeugen kannst, beginne mit 01 und verwende für jeden folgenden Aufruf dieselbe Szene mit der jeweils nächsten Kunstrichtung.
