@@ -1,9 +1,11 @@
-use crate::routing::{walk, walking_edges};
+use crate::lift::LiftSystem;
+use crate::routing::{RouteLeg, walk, walking_edges};
 use crate::{
     Action, CommandNumber, CommandResult, DataError, Designation, HouseholdId, Impact, Outcome,
     PersonId, Place, PlaceId, PlaceKind, Rejection, Scenario, ScheduledCommand, SectionId,
     SubmitError,
 };
+use crate::{LiftId, LiftStopId};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -19,8 +21,23 @@ pub struct WalkSegment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Location {
-    At { place: PlaceId },
+    At {
+        place: PlaceId,
+    },
     Walking(WalkSegment),
+    WaitingLift {
+        place: PlaceId,
+        lift: LiftId,
+        from: LiftStopId,
+        to: LiftStopId,
+        arrival_tick: u64,
+    },
+    RidingLift {
+        place: PlaceId,
+        lift: LiftId,
+        from: LiftStopId,
+        to: LiftStopId,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +46,12 @@ pub struct Person {
     pub office: Option<PlaceId>,
     pub household: HouseholdId,
     pub location: Location,
-    pub(crate) remaining_walk: VecDeque<WalkSegment>,
+    pub(crate) destination: Option<PlaceId>,
+    pub(crate) remaining_route: VecDeque<RouteLeg>,
+    pub(crate) waited_ticks: u64,
+    pub(crate) frustration: u32,
+    pub(crate) dissatisfaction: u32,
+    pub(crate) last_lift: Option<LiftId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +67,18 @@ pub struct CoreState {
     pub(crate) next_person_id: u64,
     pub(crate) development_points: u32,
     pub(crate) first_population_awarded: bool,
+    pub(crate) lift_unlocked: bool,
+    pub(crate) lifts: LiftSystem,
+    pub(crate) express_lifts: BTreeSet<LiftId>,
+    pub(crate) next_lift_id: u64,
+    pub(crate) route_searches: u64,
+    pub(crate) lift_boardings: u64,
+    pub(crate) lift_transfers: u64,
+    pub(crate) total_waited_ticks: u64,
+    pub(crate) longest_queue: usize,
+    pub(crate) coffee_trips: BTreeMap<PersonId, crate::initiative::CoffeeTrip>,
+    pub(crate) coffee_observations: BTreeMap<PlaceId, BTreeMap<PlaceId, u32>>,
+    pub(crate) initiatives: BTreeMap<PlaceId, BTreeMap<PlaceId, crate::initiative::Slide>>,
     pub(crate) people: BTreeMap<PersonId, Person>,
     pub(crate) pending: BTreeMap<u64, BTreeMap<CommandNumber, Action>>,
     pub(crate) submitted_numbers: BTreeSet<CommandNumber>,
@@ -62,6 +96,16 @@ pub struct Checkpoint {
     pub report: TickReport,
     pub checksum: String,
     pub state: CoreState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct TransportStats {
+    pub route_searches: u64,
+    pub waiting_people: usize,
+    pub lift_boardings: u64,
+    pub lift_transfers: u64,
+    pub longest_queue: usize,
+    pub total_waited_ticks: u64,
 }
 
 pub struct World {
@@ -83,23 +127,23 @@ impl World {
             .people
             .iter()
             .map(|person| {
-                let mut walk = walk(&edges, person.location, person.office, 0).unwrap_or_default();
-                let location = walk.pop_front().map_or(
-                    Location::At {
+                let route = walk(&edges, person.location, person.office, 0).unwrap_or_default();
+                let mut rider = Person {
+                    home: person.home,
+                    office: Some(person.office),
+                    household: person.household.unwrap_or(HouseholdId(person.id.0)),
+                    location: Location::At {
                         place: person.location,
                     },
-                    Location::Walking,
-                );
-                (
-                    person.id,
-                    Person {
-                        home: person.home,
-                        office: Some(person.office),
-                        household: person.household.unwrap_or(HouseholdId(person.id.0)),
-                        location,
-                        remaining_walk: walk,
-                    },
-                )
+                    destination: Some(person.office),
+                    remaining_route: route,
+                    waited_ticks: 0,
+                    frustration: 0,
+                    dissatisfaction: 0,
+                    last_lift: None,
+                };
+                rider.begin_initial_walk(person.location, 0);
+                (person.id, rider)
             })
             .collect();
         let households = people
@@ -142,6 +186,18 @@ impl World {
             designations,
             development_points: 0,
             first_population_awarded: false,
+            lift_unlocked: false,
+            lifts: LiftSystem::default(),
+            express_lifts: BTreeSet::new(),
+            next_lift_id: 1,
+            route_searches: 0,
+            lift_boardings: 0,
+            lift_transfers: 0,
+            total_waited_ticks: 0,
+            longest_queue: 0,
+            coffee_trips: BTreeMap::new(),
+            coffee_observations: BTreeMap::new(),
+            initiatives: BTreeMap::new(),
             pending: BTreeMap::new(),
             submitted_numbers: BTreeSet::new(),
         };
@@ -178,6 +234,45 @@ impl World {
         Ok(())
     }
 
+    pub fn submit_next(&mut self, action: Action) -> Result<(), SubmitError> {
+        let tick = self.tick().checked_add(1).ok_or(SubmitError::Exhausted)?;
+        let number = self
+            .state
+            .submitted_numbers
+            .last()
+            .map_or(Some(1), |number| number.0.checked_add(1))
+            .ok_or(SubmitError::Exhausted)?;
+        self.submit(ScheduledCommand {
+            tick,
+            number: CommandNumber(number),
+            action,
+        })
+    }
+
+    pub fn person_location(&self, id: PersonId) -> Option<Location> {
+        self.state.people.get(&id).map(|person| person.location)
+    }
+
+    pub fn transport_stats(&self) -> TransportStats {
+        TransportStats {
+            route_searches: self.state.route_searches,
+            waiting_people: self
+                .state
+                .lifts
+                .lines()
+                .map(|(lift, _)| self.state.lifts.waiting_count(lift))
+                .sum(),
+            lift_boardings: self.state.lift_boardings,
+            lift_transfers: self.state.lift_transfers,
+            longest_queue: self.state.longest_queue,
+            total_waited_ticks: self.state.total_waited_ticks,
+        }
+    }
+
+    pub fn tick_report(&self) -> &TickReport {
+        &self.last_report
+    }
+
     pub fn step(&mut self) -> TickReport {
         let Some(tick) = self.tick().checked_add(1) else {
             return self.last_report.clone();
@@ -198,17 +293,9 @@ impl World {
             })
             .collect();
 
-        for person in self.state.people.values_mut() {
-            if let Location::Walking(segment) = person.location
-                && segment.end_tick == tick
-            {
-                person.location = person
-                    .remaining_walk
-                    .pop_front()
-                    .map_or(Location::At { place: segment.to }, Location::Walking);
-            }
-        }
-
+        self.progress_transport();
+        self.daily_commutes();
+        self.ease_frustration();
         self.find_tenants();
         self.settle_day();
         self.last_report = TickReport { tick, results };
@@ -255,6 +342,16 @@ impl World {
                 }
                 (definition.rent_cost, i64::from(definition.rent_cost))
             }
+            Action::ReturnSection { section, .. } => return self.preview_return(section),
+            Action::CoffeeTrip { person, kiosk } => return self.preview_coffee(person, kiosk),
+            Action::UnlockLift => return self.preview_unlock(),
+            Action::BuildLift { ref stops } => return self.preview_lift(stops, false),
+            Action::BuildExpress { ref stops } => return self.preview_lift(stops, true),
+            Action::Commute { person, toward } => {
+                let goal = self.commute_destination(person, toward)?;
+                self.planned_route(person, goal)?;
+                return Ok(Impact::default());
+            }
             Action::Designate { place, designation } => {
                 let entry = self.place(place).ok_or(Rejection::UnknownPlace)?;
                 if entry.kind != PlaceKind::Space {
@@ -300,6 +397,24 @@ impl World {
             }
             Action::Designate { place, designation } => {
                 self.state.designations.insert(place, designation);
+                self.refresh_access_widths();
+            }
+            Action::ReturnSection {
+                section,
+                ref confirmation,
+            } => {
+                return self.return_section(section, confirmation);
+            }
+            Action::CoffeeTrip { person, kiosk } => self.start_coffee(person, kiosk)?,
+            Action::UnlockLift => {
+                self.state.development_points -= 1;
+                self.state.lift_unlocked = true;
+            }
+            Action::BuildLift { .. } => self.install_lift(impact.stops, false)?,
+            Action::BuildExpress { .. } => self.install_lift(impact.stops, true)?,
+            Action::Commute { person, toward } => {
+                let goal = self.commute_destination(person, toward)?;
+                self.send_to(person, goal)?;
             }
         }
         self.state.balance -= i64::from(impact.immediate_cost);

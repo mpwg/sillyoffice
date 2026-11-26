@@ -52,7 +52,9 @@ impl World {
             };
             offices.remove(&office);
             person.office = Some(office);
-            person.begin_walk(place, route);
+            person.remaining_route = route;
+            person.destination = Some(office);
+            person.begin_initial_walk(place, tick);
         }
         for (household, size) in applicants {
             let size_usize = size as usize;
@@ -86,9 +88,14 @@ impl World {
                     office: Some(office),
                     household,
                     location: Location::At { place: reception },
-                    remaining_walk: Default::default(),
+                    remaining_route: route,
+                    destination: Some(office),
+                    waited_ticks: 0,
+                    frustration: 0,
+                    dissatisfaction: 0,
+                    last_lift: None,
                 };
-                person.begin_walk(reception, route);
+                person.begin_initial_walk(reception, tick);
                 self.state.people.insert(id, person);
             }
             self.state.households.insert(household, home);
@@ -122,18 +129,5 @@ impl World {
             .iter()
             .find(|entry| entry.kind == PlaceKind::Reception && self.is_rented(entry.section))
             .map(|entry| entry.id)
-    }
-}
-
-impl Person {
-    pub(crate) fn begin_walk(
-        &mut self,
-        from: PlaceId,
-        mut route: std::collections::VecDeque<crate::WalkSegment>,
-    ) {
-        self.location = route
-            .pop_front()
-            .map_or(Location::At { place: from }, Location::Walking);
-        self.remaining_walk = route;
     }
 }

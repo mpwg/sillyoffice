@@ -20,6 +20,26 @@ pub enum Action {
     RentSection {
         section: SectionId,
     },
+    UnlockLift,
+    ReturnSection {
+        section: SectionId,
+        #[serde(default)]
+        confirmation: String,
+    },
+    CoffeeTrip {
+        person: PersonId,
+        kiosk: PlaceId,
+    },
+    BuildLift {
+        stops: Vec<LiftStopId>,
+    },
+    BuildExpress {
+        stops: Vec<LiftStopId>,
+    },
+    Commute {
+        person: PersonId,
+        toward: CommuteTarget,
+    },
     Designate {
         place: PlaceId,
         #[serde(rename = "use")]
@@ -37,6 +57,8 @@ pub enum SubmitError {
     },
     #[error("Befehlsnummer {0:?} wurde bereits eingereiht")]
     DuplicateNumber(CommandNumber),
+    #[error("Keine weiteren Befehlsnummern oder Ticks verfügbar")]
+    Exhausted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -71,6 +93,32 @@ pub enum Rejection {
     PlaceOccupied,
     #[error("Die Fläche hat diese Widmung bereits.")]
     AlreadyDesignated,
+    #[error("Der Lift ist noch gesperrt.")]
+    LiftLocked,
+    #[error("Der Lift wurde bereits freigeschaltet.")]
+    LiftAlreadyUnlocked,
+    #[error("Für die Freischaltung fehlt ein Entwicklungspunkt.")]
+    NoDevelopmentPoints,
+    #[error("Die Halte bilden keine gültige Liftlinie.")]
+    InvalidLiftStops,
+    #[error("Mindestens ein Halt hat keinen zugänglichen Anschluss.")]
+    LiftStopBlocked,
+    #[error("Der Schacht wird bereits von einer Linie bedient.")]
+    LiftStopOccupied,
+    #[error("Diese Person ist nicht im Gebäude.")]
+    UnknownPerson,
+    #[error("Die Person ist bereits unterwegs.")]
+    PersonInTransit,
+    #[error("Das Ziel ist derzeit nicht erreichbar.")]
+    NoRoute,
+    #[error("Der Zielraum ist kein Kiosk.")]
+    NotAKiosk,
+    #[error("Der Kaffeegang beginnt am Arbeitsplatz.")]
+    CoffeeFromOffice,
+    #[error("Der Abschnitt mit der Rezeption bleibt geöffnet.")]
+    ProtectedReception,
+    #[error("Die Folgen haben sich geändert. Bitte Vorschau erneut bestätigen.")]
+    ReturnChanged,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -85,6 +133,7 @@ pub enum Designation {
 
 #[derive(Debug, Default, PartialEq, Eq, Serialize)]
 pub struct Impact {
+    pub stops: Vec<LiftStopId>,
     pub immediate_cost: u32,
     pub section_rent_change: i64,
     pub households_leaving: Vec<HouseholdId>,
@@ -92,4 +141,11 @@ pub struct Impact {
     pub affected_people: Vec<PersonId>,
     pub remaining_stops: Vec<LiftStopId>,
     pub confirmation: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommuteTarget {
+    Home,
+    Work,
 }

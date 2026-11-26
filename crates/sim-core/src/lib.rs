@@ -13,11 +13,13 @@ mod replay;
 mod world;
 
 pub use command::{
-    Action, CommandNumber, CommandResult, Designation, Impact, Outcome, Rejection,
+    Action, CommandNumber, CommandResult, CommuteTarget, Designation, Impact, Outcome, Rejection,
     ScheduledCommand, SubmitError,
 };
 pub use replay::{Replay, ReplayError, ReplayReport};
-pub use world::{Checkpoint, CoreState, Location, Person, TickReport, WalkSegment, World};
+pub use world::{
+    Checkpoint, CoreState, Location, Person, TickReport, TransportStats, WalkSegment, World,
+};
 
 mod view;
 pub use view::{ViewFrame, ViewRect};
@@ -25,3 +27,17 @@ pub use view::{ViewFrame, ViewRect};
 mod economy;
 mod routing;
 mod tenancy;
+
+mod lift;
+mod transit;
+pub use lift::LiftId;
+
+mod save;
+pub use save::SaveError;
+
+mod initiative;
+
+mod inspect;
+pub use inspect::PersonInfo;
+
+mod return_section;
